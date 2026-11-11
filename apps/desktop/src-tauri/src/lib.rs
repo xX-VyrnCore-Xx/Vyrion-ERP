@@ -9,7 +9,7 @@ mod keystore;
 mod manager;
 mod system;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use serde::Serialize;
@@ -77,6 +77,31 @@ async fn blocking<T: Send + 'static>(
     tauri::async_runtime::spawn_blocking(job)
         .await
         .map_err(|e| format!("background task failed: {e}"))?
+}
+
+/// Largest text file the app will write for an export (CSV): a guard, not a real limit.
+const MAX_EXPORT_BYTES: usize = 64 * 1024 * 1024;
+
+/// Writes `content` next to `dest` first and renames it, so a failure never leaves a
+/// half-written file where the person chose to save.
+fn write_text(dest: &Path, content: &str) -> Result<(), String> {
+    if content.len() > MAX_EXPORT_BYTES {
+        return Err("the export is too large".into());
+    }
+    let mut temp = dest.as_os_str().to_owned();
+    temp.push(".part");
+    let temp = PathBuf::from(temp);
+    std::fs::write(&temp, content).map_err(|e| e.to_string())?;
+    std::fs::rename(&temp, dest).map_err(|e| {
+        let _ = std::fs::remove_file(&temp);
+        e.to_string()
+    })
+}
+
+#[tauri::command]
+async fn export_text(dest: String, content: String) -> Result<(), String> {
+    let dest = destination(&dest)?;
+    blocking(move || write_text(&dest, &content)).await
 }
 
 #[tauri::command]
@@ -237,6 +262,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             system_info,
             app_info,
+            export_text,
             db_status,
             db_query,
             db_execute,
@@ -267,6 +293,17 @@ mod tests {
         assert_eq!(info.os, std::env::consts::OS);
         assert_eq!(info.arch, std::env::consts::ARCH);
         assert!(!info.os.is_empty() && !info.arch.is_empty());
+    }
+
+    #[test]
+    fn text_exports_are_written_whole_and_leave_no_temporary_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let dest = dir.path().join("report.csv");
+        write_text(&dest, "a;b\r\n1;2\r\n").unwrap();
+        assert_eq!(std::fs::read_to_string(&dest).unwrap(), "a;b\r\n1;2\r\n");
+        write_text(&dest, "x").unwrap();
+        assert_eq!(std::fs::read_to_string(&dest).unwrap(), "x");
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
     }
 
     #[test]

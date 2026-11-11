@@ -267,14 +267,15 @@ export class EntityRepository {
     if (options.expectedVersion !== undefined && options.expectedVersion !== before.version) {
       throw new VersionConflictError(options.expectedVersion, before.version);
     }
-    await this.assertNotReferenced(tx, id);
     const record = {
       ...before,
       deleted_at: ctx.now(),
       updated_at: ctx.now(),
       version: before.version + 1,
     } as Rec;
+    // The hook may remove records that belong to this one (e.g. document lines) first.
     await this.runHook(this.def.beforeDelete, tx, ctx, "delete", before, record);
+    await this.assertNotReferenced(tx, id);
 
     const result = await tx.execute(
       `UPDATE ${this.def.table} SET deleted_at = ?, updated_at = ?, version = ? WHERE id = ? AND version = ? AND deleted_at IS NULL`,

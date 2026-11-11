@@ -45,6 +45,23 @@ export class Workspace {
     return new Workspace(options.db, registry, deviceId, sync, clock, actor);
   }
 
+  private readonly listeners = new Set<() => void>();
+  /** Increases after every successful write; screens use it to refresh. */
+  revision = 0;
+
+  subscribe = (listener: () => void): (() => void) => {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  };
+
+  getRevision = (): number => this.revision;
+
+  private changed<T>(value: T): T {
+    this.revision++;
+    for (const listener of this.listeners) listener();
+    return value;
+  }
+
   get ctx(): Ctx {
     return {
       now: () => this.clock().toISOString(),
@@ -80,42 +97,42 @@ export class Workspace {
     return this.repo(key).get(this.db, id);
   }
 
-  create(key: string, input: Record<string, unknown>): Promise<Rec> {
-    return this.db.transaction((tx) => this.repo(key).create(tx, this.ctx, input));
+  async create(key: string, input: Record<string, unknown>): Promise<Rec> {
+    return this.changed(
+      await this.db.transaction((tx) => this.repo(key).create(tx, this.ctx, input)),
+    );
   }
 
-  update(
+  async update(
     key: string,
     id: string,
     patch: Record<string, unknown>,
     expectedVersion?: number,
   ): Promise<Rec> {
-    return this.db.transaction((tx) =>
-      this.repo(key).update(
-        tx,
-        this.ctx,
-        id,
-        patch,
-        expectedVersion === undefined ? {} : { expectedVersion },
-      ),
+    const options = expectedVersion === undefined ? {} : { expectedVersion };
+    return this.changed(
+      await this.db.transaction((tx) => this.repo(key).update(tx, this.ctx, id, patch, options)),
     );
   }
 
-  remove(key: string, id: string, expectedVersion?: number): Promise<void> {
-    return this.db.transaction((tx) =>
-      this.repo(key).remove(
-        tx,
-        this.ctx,
-        id,
-        expectedVersion === undefined ? {} : { expectedVersion },
-      ),
+  async remove(key: string, id: string, expectedVersion?: number): Promise<void> {
+    const options = expectedVersion === undefined ? {} : { expectedVersion };
+    this.changed(
+      await this.db.transaction((tx) => this.repo(key).remove(tx, this.ctx, id, options)),
     );
   }
 
   /** Runs several operations as one atomic unit (for business logic spanning entities). */
-  transact<T>(
+  async transact<T>(
     fn: (tx: SqlRunner, ctx: Ctx, repo: (key: string) => EntityRepository) => Promise<T>,
   ): Promise<T> {
-    return this.db.transaction((tx) => fn(tx, this.ctx, (key) => this.repo(key)));
+    return this.changed(
+      await this.db.transaction((tx) => fn(tx, this.ctx, (key) => this.repo(key))),
+    );
+  }
+
+  /** Tells the screens that something changed outside the usual operations (e.g. a restore). */
+  touch(): void {
+    this.changed(undefined);
   }
 }

@@ -3,7 +3,7 @@ export const it = {
   appName: "Vyrion ERP",
   nav: { label: "Navigazione principale", status: "Stato del sistema", settings: "Impostazioni" },
   connection: {
-    unconfigured: "Server non configurato",
+    unconfigured: "Solo locale (nessun server)",
     checking: "Verifica in corso",
     online: "Connesso",
     degraded: "Server degradato",
@@ -32,7 +32,10 @@ export const it = {
   settings: {
     title: "Impostazioni",
     subtitle: "Configurazione locale di questa installazione.",
-    serverSection: "Server aziendale",
+    serverSection: "Server aziendale (facoltativo)",
+    serverIntro:
+      "Vyrion ERP funziona da solo, con i dati su questo computer. Il collegamento a un server aziendale è facoltativo e si può attivare in qualsiasi momento: i dati esistenti verranno poi sincronizzati con esso.",
+    serverStatusLink: "Stato del server",
     serverUrl: "Indirizzo del server",
     serverUrlHelp:
       "URL HTTPS del backend raggiungibile via VPN, ad esempio https://erp.vyrncore.lan",

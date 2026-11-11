@@ -135,6 +135,12 @@ const document: EntityDef = {
     { name: "total", label: "Totale", type: "money", default: 0, readonly: true, list: true },
     { name: "notes", label: "Note", type: "longtext" },
   ],
+  // A draft takes its lines with it.
+  beforeDelete: async ({ tx, ctx, repo, record }) => {
+    const lines = repo("document_line");
+    const own = await lines.list(tx, { filters: { document_id: record.id }, limit: 1000 });
+    for (const line of own.rows) await lines.remove(tx, ctx, line.id);
+  },
   beforeSave: async ({ record, before }) => {
     const type = record["type"] as DocType;
     if (before && before["type"] !== type)
