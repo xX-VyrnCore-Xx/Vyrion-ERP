@@ -4,9 +4,10 @@ name: Release
 # installers, creates a NEW tag and publishes a GitHub release with the files; then the
 # releases older than the newest three are pruned. See docs/RELEASING.md.
 #
-# The number is chosen automatically (tools/release/next_version.py): the version in the
-# files if it is not tagged yet, otherwise the next pre-release counter. Two other ways in
-# are kept: pushing a tag by hand, and Actions -> Release -> Run workflow with a version.
+# Automatic releases are always FINAL (stable vX.Y.Z, a normal release marked "latest"). The
+# number is chosen by tools/release/next_version.py: the version in the files if that line has
+# no release yet, otherwise the next patch number. Two other ways in are kept: pushing a tag by
+# hand, and Actions -> Release -> Run workflow with a version (these may be pre-releases).
 
 on:
   workflow_dispatch:
@@ -76,11 +77,6 @@ jobs:
             current="$(python3 tools/release/version.py get)"
             # shellcheck disable=SC2046
             version="$(python3 tools/release/next_version.py "$current" $(git tag --list 'v*'))"
-            if [ -z "$version" ]; then
-              echo "::notice::$current is a stable version that is already released: bump the version to release again"
-              echo "release=false" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
             tag="v$version"
           else
             tag="${GITHUB_REF_NAME}"
@@ -172,6 +168,8 @@ jobs:
               printf '%s\n' "$section"
             else
               echo "Build automatica del commit \`${SHA:0:7}\` su \`main\`: l'elenco delle modifiche è sotto."
+              echo
+              echo "Limiti noti e cosa non è ancora disponibile: \`docs/MODULES.md\` e \`docs/SYNC_ENGINE.md\`."
             fi
             echo
             echo "## Scarica"
