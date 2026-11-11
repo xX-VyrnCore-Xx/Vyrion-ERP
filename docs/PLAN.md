@@ -87,3 +87,7 @@ clienti → pipeline → ticket; inventario → monitoraggio → scadenze.
 Backup cifrati con verifica e test di ripristino ([BACKUP.md](BACKUP.md)); test end-to-end, di
 sicurezza e prestazioni; build firmate Windows/macOS, notarizzazione, aggiornamento automatico,
 release e changelog automatici.
+
+**Anticipato dalla M12:** la pipeline di build e rilascio con pulizia automatica (ultime 3
+release) è scritta: vedi [RELEASING.md](RELEASING.md). Resta da fare la firma di Windows, gli
+aggiornamenti automatici e la prima esecuzione reale su GitHub Actions e su runner Windows/macOS.

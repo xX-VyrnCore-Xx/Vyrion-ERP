@@ -24,6 +24,7 @@ apps/desktop/src-tauri/  Shell nativa Tauri 2 (Rust)
 backend/             API FastAPI, modelli SQLAlchemy, migrazioni Alembic
 infra/               Docker Compose e proxy HTTPS del server aziendale
 docs/                Documentazione tecnica
+tools/release/       Versionamento, pulizia delle release e relativi test
 .github/             CI e aggiornamento dipendenze
 ```
 
@@ -79,6 +80,7 @@ puntano a servizi reali; altrimenti vengono saltati.
 | [DEPLOYMENT](docs/DEPLOYMENT.md) | Installazione sul server aziendale |
 | [BACKUP](docs/BACKUP.md) | Strategia di backup e ripristino |
 | [SYNC_ENGINE](docs/SYNC_ENGINE.md) | Offline-first e sincronizzazione |
+| [RELEASING](docs/RELEASING.md) | Build, release e pulizia automatica |
 | [ROADMAP](docs/ROADMAP.md) | Versioni previste |
 | [CONTRIBUTING](CONTRIBUTING.md) | Regole di sviluppo |
 | [CHANGELOG](CHANGELOG.md) | Storico delle modifiche |

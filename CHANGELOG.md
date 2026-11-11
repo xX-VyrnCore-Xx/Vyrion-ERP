@@ -5,10 +5,17 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ## [Unreleased]
 
-Milestone 3 (database e backend).
+Milestone 3 (database e backend) e pipeline di rilascio.
 
 ### Added
 
+- Pipeline di rilascio su tag (`release.yml`): verifica che tag e versioni coincidano, installer
+  per Windows x64 (NSIS), macOS Apple Silicon e Intel (DMG), checksum SHA-256, release su GitHub
+  con note dal changelog; alpha, beta e rc come pre-release.
+- Pulizia automatica (`prune-releases.yml`): dopo ogni release restano le ultime 3, in ordine di
+  precedenza semantica; eseguibile anche a mano in modalità di anteprima.
+- `tools/release`: coerenza della versione nei 7 file (`version.py`), logica di potatura e test.
+- Firma e notarizzazione macOS opzionali, attive solo se i segreti sono configurati.
 - Modelli e migrazione `0002`: azienda, utenti, ruoli, permessi, assegnazioni, audit log.
 - Vincoli nel database: azienda unica, forfettario solo per ditta individuale, email utente
   univoca tra gli attivi, audit log solo in aggiunta.
@@ -20,6 +27,7 @@ Milestone 3 (database e backend).
 
 ### Changed
 
+- Tauri produce solo gli installer NSIS e DMG: l'MSI non accetta versioni con pre-release `alpha.N`.
 - Aggiornamenti delle dipendenze: Python 3.15, PostgreSQL 18, Redis 8 (immagini Docker e servizi
   di CI); `actions/checkout` 7, `actions/setup-node` 7, `pnpm/action-setup` 6,
   `astral-sh/setup-uv` 7.
