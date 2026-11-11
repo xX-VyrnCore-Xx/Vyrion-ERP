@@ -65,6 +65,9 @@ jobs:
       CARGO_TERM_COLOR: always
       # Shown in the app's About panel.
       VITE_APP_COMMIT: ${{ github.sha }}
+      # SQLCipher is built against a vendored OpenSSL, which needs a complete Perl. The Perl
+      # that ships with Git for Windows lacks modules, so use Strawberry Perl on the runner.
+      OPENSSL_SRC_PERL: ${{ runner.os == 'Windows' && 'C:/Strawberry/perl/bin/perl.exe' || '' }}
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
