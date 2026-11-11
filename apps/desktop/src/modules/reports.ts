@@ -266,5 +266,5 @@ export function toCsv(
   };
   const lines = [columns.map((c) => cell(c.label)).join(";")];
   for (const row of rows) lines.push(columns.map((c) => cell(row[c.key])).join(";"));
-  return `﻿${lines.join("\r\n")}\r\n`;
+  return `${String.fromCharCode(0xfeff)}${lines.join("\r\n")}\r\n`;
 }
