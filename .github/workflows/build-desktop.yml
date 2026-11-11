@@ -192,7 +192,9 @@ jobs:
           dmg="$(find dist-release -maxdepth 1 -name '*.dmg' -print -quit)"
           hdiutil verify "$dmg"
           mount_point="$(mktemp -d)"
-          hdiutil attach -nobrowse -readonly -mountpoint "$mount_point" "$dmg" >/dev/null
+          # The image carries the terms of use, which hdiutil asks to accept; answer "Y" for it.
+          echo Y | hdiutil attach -nobrowse -readonly -mountpoint "$mount_point" "$dmg" >/dev/null \
+            || { echo "::error::cannot mount the disk image"; exit 1; }
           trap 'hdiutil detach "$mount_point" >/dev/null || true' EXIT
           app="$(find "$mount_point" -maxdepth 1 -name '*.app' -print -quit)"
           test -n "$app" || { echo "::error::no .app bundle inside the disk image"; exit 1; }
