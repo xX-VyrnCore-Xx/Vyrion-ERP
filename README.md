@@ -1,10 +1,14 @@
 # Vyrion ERP
 
 Piattaforma gestionale proprietaria di **VyrnCore Enterprises**: ERP, CRM e IT Management in
-un'unica applicazione desktop (Windows e macOS) collegata al server aziendale tramite VPN privata.
+un'unica applicazione desktop (Windows 10/11 e macOS Apple Silicon). **Funziona da sola, offline,
+con i dati cifrati su questo computer**; il collegamento al server aziendale (tramite VPN) è
+facoltativo e si attiva in un secondo momento.
 
-> **Stato: `0.1.0-alpha.1` — milestone 1 e 2 completate** (architettura, repository, ambiente).
-> I moduli gestionali non sono ancora implementati: vedi [docs/PLAN.md](docs/PLAN.md).
+> **Stato: alpha.** L'app desktop contiene una prima implementazione reale dei moduli CRM, ERP e IT
+> (vedi [docs/MODULES.md](docs/MODULES.md) per cosa c'è e cosa manca). La sincronizzazione con il
+> server **non è ancora implementata**. L'interfaccia nativa non è ancora stata provata su una
+> finestra Windows/macOS reale: vedi *Verifiche* nel [CHANGELOG](CHANGELOG.md).
 
 ## Cosa funziona oggi
 
@@ -12,7 +16,7 @@ un'unica applicazione desktop (Windows e macOS) collegata al server aziendale tr
 | --- | --- |
 | Backend | FastAPI: accesso con Argon2id e 2FA, sessioni revocabili, RBAC applicato dal server, utenti, ruoli, azienda, audit; probe `live` / `ready` reali |
 | Database | SQLAlchemy 2 + Alembic: azienda, utenti, ruoli, permessi, sessioni, audit e storico accessi immutabili |
-| Desktop | Shell Tauri 2 + React: stato della connessione al server, riconnessione automatica, tema scuro/chiaro |
+| Desktop | Tauri 2 + React, offline-first: database SQLite cifrato (SQLCipher), moduli CRM/ERP/IT, panoramica, notifiche, ricerca, backup e ripristino cifrati, collegamento facoltativo al server |
 | Server | Docker Compose: PostgreSQL, Redis, backend, proxy HTTPS esposto solo sull'interfaccia VPN |
 | CI | Lint, type-check, test unitari e di integrazione, audit dipendenze, build immagine |
 
@@ -56,7 +60,12 @@ pnpm tauri dev      # applicazione nativa
 pnpm dev            # solo interfaccia, nel browser su http://localhost:1420
 ```
 
-In **Impostazioni** inserisci l'indirizzo del server (`http://127.0.0.1:8000` in sviluppo).
+Alla prima apertura l'app chiede i dati dell'azienda (forma giuridica e regime fiscale sono due
+scelte indipendenti) e parte subito: **non serve alcun server**. Nel solo browser (`pnpm dev`) i
+dati sono in memoria e si perdono alla chiusura; con `pnpm tauri dev` sono nel database cifrato.
+
+Il collegamento al server è facoltativo: in **Impostazioni** si può inserire l'indirizzo
+(`http://127.0.0.1:8000` in sviluppo) per verificarne la raggiungibilità.
 
 ## Verifiche
 

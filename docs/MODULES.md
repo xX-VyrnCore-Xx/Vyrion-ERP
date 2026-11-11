@@ -1,7 +1,31 @@
 # Moduli
 
-**Nessun modulo gestionale è ancora implementato.** Questo documento definisce l'ambito previsto.
-Un modulo compare nell'interfaccia solo quando ha un'implementazione reale e testata.
+I moduli CRM, ERP e IT hanno una **prima implementazione reale, locale e testata** nell'app
+desktop (regole nel client, dati nel database SQLite cifrato). Questo documento indica, per
+ciascun modulo, cosa c'è e cosa **non** c'è ancora. Un modulo compare nell'interfaccia solo quando
+ha un'implementazione reale e testata.
+
+## Cosa c'è oggi
+
+| Area | Implementato | Non ancora |
+| --- | --- | --- |
+| **Anagrafiche** | Clienti, fornitori, partner, potenziali clienti; contatti; partita IVA, codice fiscale e IBAN validati per checksum | Importazione da file; unione di duplicati |
+| **Pipeline** | Fasi configurabili, opportunità, vista a colonne, valore ponderato, data di chiusura automatica | Trascinamento con il mouse (si sposta con un menu) |
+| **Comunicazioni, agenda, attività** | Registro di chiamate/email/incontri (inseriti a mano), appuntamenti, attività con scadenza, calendario mensile | **Integrazione email**, sincronizzazione con calendari esterni, promemoria di sistema |
+| **Contratti e assistenza** | Contratti con preavviso di disdetta; ticket numerati per anno con interventi | Ore dei ticket in fattura |
+| **Documenti** | Preventivi → ordini → fatture; note di credito; fatture di acquisto; numerazione senza buchi e in ordine di data; totali IVA per aliquota; bollo; regime forfettario/ordinario; documenti emessi immutabili | **XML FatturaPA e invio SDI**, PDF/stampa, ritenuta d'acconto, cassa previdenziale, split payment, fatture multi-valuta |
+| **Contabilità** | Piano dei conti, prima nota in partita doppia (quadratura obbligatoria, immutabile, storno), registrazioni automatiche da fatture e pagamenti, bilancio di verifica, conto economico | Chiusura dell'esercizio, bilancio civilistico, ammortamenti, riconciliazione bancaria |
+| **Scadenze e pagamenti** | Scadenzario clienti/fornitori con fasce di scaduto, incassi e pagamenti parziali, storno dei pagamenti | Import estratti conto |
+| **Magazzino** | Prodotti e servizi, movimenti con segno, giacenza non negativa, scorta minima, movimenti automatici dalle fatture, valore | Lotti, matricole, più magazzini, costo medio ponderato |
+| **Personale e progetti** | Anagrafica, ferie/assenze senza sovrapposizioni, progetti, ore, costo del lavoro e valore fatturabile | Buste paga, presenze da timbratore |
+| **Report** | Conto economico, riepilogo IVA, bilancio di verifica, progetti, esportazione CSV | Registri IVA fiscalmente validi, liquidazione con acconti |
+| **IT** | Inventario asset, reti con controllo di sovrapposizione e appartenenza degli IP, peer WireGuard (solo chiave pubblica), account (senza password), licenze, backup (job + esecuzioni registrate), eventi di sicurezza, controlli TCP reali, risorse di questo computer, documentazione tecnica | Agenti di monitoraggio remoti, integrazione Proxmox/NAS, scansione di rete |
+| **Trasversali** | Panoramica con indicatori reali e personalizzabile, notifiche calcolate dai dati, ricerca globale, storico delle modifiche, allegati, backup e ripristino cifrati | Permessi per record; più utenti locali; sincronizzazione (vedi [SYNC_ENGINE.md](SYNC_ENGINE.md)) |
+
+> **Contabilità gestionale ≠ adempimenti fiscali.** Quanto sopra produce dati gestionali. Registri
+> IVA, liquidazioni e dichiarazioni restano di competenza del commercialista.
+
+## Ambito originario (riferimento)
 
 ## Struttura di un modulo
 

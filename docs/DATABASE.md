@@ -1,5 +1,51 @@
 # Database
 
+Due database con ruoli diversi. **Il database locale** (SQLite + SQLCipher, nell'app desktop) è
+quello che l'app usa sempre; **il database del server** (PostgreSQL, sezione successiva) serve
+solo quando l'app è collegata a un server aziendale.
+
+## Database locale (app desktop)
+
+File `vyrion.db` nella cartella dati dell'applicazione, cifrato con SQLCipher; la chiave a 256 bit
+è generata alla prima apertura e custodita nel portachiavi del sistema (Credential Manager su
+Windows, Keychain su macOS). Un database esistente la cui chiave manca **non viene mai
+ri-cifrato in silenzio**: l'app si ferma con un errore.
+
+Regole comuni a tutte le tabelle di business (generate da `createTableSql`):
+
+| Colonna | Significato |
+| --- | --- |
+| `id` | UUID v7 generato dal client |
+| `version` | Contatore per il blocco ottimistico e la sincronizzazione |
+| `created_at`, `updated_at` | Istanti ISO 8601 UTC |
+| `deleted_at` | Eliminazione logica: le righe restano per storico e sincronizzazione |
+
+Importi in **centesimi interi**; date come testo (`AAAA-MM-GG`); percentuali e quantità `REAL`.
+Gli indici di unicità valgono solo tra i record non eliminati. I valori dei campi a scelta sono
+vincolati con `CHECK` e i riferimenti con chiave esterna.
+
+| Tabella di sistema | Contenuto |
+| --- | --- |
+| `schema_migrations` | Migrazioni applicate, con checksum SHA-256: una migrazione modificata dopo l'applicazione, o un database più recente dell'app, viene rifiutato |
+| `settings` | Impostazioni (azienda, identificativo del dispositivo, collegamento al server…) |
+| `audit_log` | Registro delle modifiche, **solo in aggiunta** (trigger che rifiutano `UPDATE` e `DELETE`) |
+| `sync_outbox` | Operazioni in attesa di invio al server; si riempie solo a collegamento attivo |
+| `number_sequences` | Contatori delle numerazioni (fatture, prima nota) incrementati nella stessa transazione del documento: nessun buco |
+| `monitor_results` | Esiti dei controlli di raggiungibilità (telemetria, fuori da audit e sincronizzazione) |
+| `dismissed_notifications` | Notifiche nascoste dall'utente |
+
+Le tabelle dei moduli (`parties`, `documents`, `journal_entries`, `assets`…) derivano dalle
+definizioni in `apps/desktop/src/modules/`. **Finché l'app non è rilasciata** la migrazione
+`business-entities` segue le definizioni; dal primo rilascio stabile il suo SQL va congelato e ogni
+modifica diventa una nuova migrazione (un database di sviluppo creato prima di una modifica va
+ricreato).
+
+Regole imposte dal database o dalle transazioni: registrazioni contabili e righe immutabili (solo
+storno), documenti fiscali emessi immutabili, giacenza non negativa, numerazione fiscale senza buchi
+e in ordine di data, quadratura dare/avere.
+
+## Database del server (PostgreSQL)
+
 ## Stato attuale
 
 Migrazioni: `0001` (baseline), `0002` (tabelle di base) e `0003` (autenticazione). Le tabelle dei

@@ -23,6 +23,9 @@ TypeScript resta alla 6 finché `typescript-eslint` non supporta la 7.
 | --- | --- | --- |
 | Tauri | 2 | Shell nativa, installatori, aggiornamenti |
 | Rust | stabile (≥ 1.80) | Core nativo |
+| rusqlite + SQLCipher | bundled, OpenSSL incluso | Database locale cifrato |
+| keyring | 3 | Chiave del database nel portachiavi (Windows, macOS) |
+| sql.js | 1.x | Solo test e sviluppo nel browser: SQLite in memoria, **escluso dalla build di produzione** |
 
 ## Backend
 

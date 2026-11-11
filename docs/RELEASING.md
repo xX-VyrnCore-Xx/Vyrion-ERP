@@ -81,7 +81,7 @@ giorni) a ogni modifica a `apps/desktop`, così una build rotta si scopre nella 
 del rilascio. Ogni build:
 
 - esegue controllo dei tipi e test del frontend prima di compilare;
-- rifiuta un installer sospettosamente piccolo (meno di 3 MB);
+- rifiuta un installer sospettosamente piccolo (meno di 1 MB);
 - **Windows:** installa l'installer in modo silenzioso in una cartella temporanea, verifica che
   l'eseguibile sia presente, lo disinstalla e verifica che sia stato rimosso;
 - **macOS:** verifica l'immagine disco (`hdiutil verify`), la apre, controlla il pacchetto `.app`

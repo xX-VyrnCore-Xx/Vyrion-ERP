@@ -5,9 +5,28 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ## [Unreleased]
 
-Milestone 4 (autenticazione e autorizzazioni) e miglioramenti alle build.
+Milestone 4 (autenticazione e autorizzazioni), miglioramenti alle build e **app desktop
+offline-first con i moduli CRM, ERP e IT**.
 
 ### Added
+
+- **Offline-first.** Database locale SQLite cifrato con SQLCipher; chiave a 256 bit nel
+  portachiavi del sistema; blocco di `ATTACH`, estensioni e cambi di chiave dal webview; backup
+  cifrati con password e ripristino atomico; controllo di integrità; allegati per hash con verifica
+  di manomissione; risorse del computer e prove TCP reali.
+- **Livello dati.** Entità dichiarative (tabella, validazione, audit, outbox), audit *append-only*,
+  migrazioni con checksum, blocco ottimistico, eliminazione logica, UUID v7, importi in centesimi.
+- **CRM:** anagrafiche, contatti, pipeline con fasi e valore ponderato, comunicazioni, agenda,
+  attività, contratti con preavviso, ticket con interventi.
+- **ERP:** preventivi, ordini, fatture, note di credito, fatture di acquisto con numerazione senza
+  buchi, IVA per aliquota, bollo, regime forfettario/ordinario; piano dei conti e prima nota in
+  partita doppia con registrazioni automatiche e storno; scadenzario; incassi e pagamenti; magazzino;
+  personale e ferie; progetti e ore; report (conto economico, IVA, bilancio di verifica) con CSV.
+- **IT:** inventario, reti e indirizzi IP (CIDR), peer WireGuard (solo chiavi pubbliche), account,
+  licenze, backup, eventi di sicurezza, controlli di raggiungibilità, documentazione tecnica.
+- Panoramica con indicatori reali e personalizzabile, notifiche calcolate dai dati, ricerca globale,
+  storico delle modifiche per record.
+- Il collegamento al server è **facoltativo** e successivo (vedi `docs/SYNC_ENGINE.md`).
 
 - Workflow `build.yml`: gli installer Windows e macOS (Apple Silicon) si costruiscono a ogni
   modifica dell'app desktop, con prove reali (installazione e rimozione su Windows, verifica
@@ -28,8 +47,25 @@ Milestone 4 (autenticazione e autorizzazioni) e miglioramenti alle build.
   automatica di sessioni e token scaduti in `bootstrap`.
 - Chiave di cifratura (`ENCRYPTION_KEYS`) nella configurazione di Compose.
 
+### Verifiche
+
+Provato in locale: 62 test del frontend (compresi flussi dell'interfaccia: primo avvio, anagrafica,
+fattura emessa e incassata) e 41 test Rust (database cifrato, backup, ripristino, allegati), tutti
+sul motore SQLite reale; lint, tipi e `clippy -D warnings` puliti.
+
+**Non ancora verificato:** l'esecuzione dell'app in una finestra Tauri reale (non c'è uno schermo
+nell'ambiente di sviluppo), il contratto tra l'interfaccia e i comandi Rust oltre ai test unitari
+dei due lati, la compilazione di SQLCipher su Windows e macOS e le prove degli installer (da
+controllare nella CI), le funzioni che usano finestre di dialogo del sistema (allegati, salvataggio
+CSV, backup).
+
+**Non implementato:** sincronizzazione con il server, integrazione email, XML FatturaPA e invio SDI,
+PDF dei documenti, permessi per record, blocco dell'app con PIN (i dati sono cifrati a riposo, ma
+chiunque acceda all'account del sistema operativo può aprire l'app).
+
 ### Changed
 
+- L'app non richiede più un server per funzionare; la schermata iniziale è la panoramica locale.
 - **Rimossa la build per macOS Intel**: restano Windows x64 e macOS Apple Silicon.
 - Installer Windows per singolo utente (senza amministratore), con WebView2 incorporato per le
   macchine senza Internet e lingua italiana; DMG con layout di trascinamento.
