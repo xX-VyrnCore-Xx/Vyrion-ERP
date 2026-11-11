@@ -5,9 +5,9 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ## [Unreleased]
 
-## [0.1.0-alpha.1] - 2026-11-11
+## [0.1.0-alpha.2] - 2026-11-11
 
-Primo rilascio pubblico: **Vyrion ERP funziona da solo, offline, con i dati cifrati sul computer**,
+Prima versione con l'app completa: **Vyrion ERP funziona da solo, offline, con i dati cifrati sul computer**,
 con una prima implementazione reale dei moduli CRM, ERP e IT. Il collegamento a un server
 aziendale è facoltativo e successivo.
 
@@ -92,7 +92,15 @@ chiunque acceda all'account del sistema operativo può aprire l'app).
   così limiti e audit vedono l'indirizzo reale del client.
 - La politica delle password rifiuta qualsiasi password che contenga l'indirizzo email intero.
 
-### Fondamenta (milestone 1-3)
+## [0.1.0-alpha.1] - 2026-11-11
+
+Primo rilascio: fondamenta del progetto (milestone 1, 2 e 3) e pipeline di rilascio.
+
+**Anteprima tecnica.** Contiene l'infrastruttura, il guscio dell'applicazione desktop e il modello
+dati di base. **I moduli ERP, CRM e IT, l'autenticazione e la sincronizzazione offline non sono
+ancora implementati.** Gli installer non sono firmati.
+
+### Added
 
 - Struttura monorepo: `apps/desktop`, `backend`, `infra`, `docs`, `tools`.
 - Backend FastAPI (Python 3.15) con configurazione da variabili d'ambiente e nessun segreto
@@ -114,7 +122,7 @@ chiunque acceda all'account del sistema operativo può aprire l'app).
   audit delle dipendenze, validazione Compose, build dell'immagine, test degli strumenti di
   rilascio. Configurazione Dependabot.
 - Pipeline di rilascio su tag: verifica che tag e versioni coincidano, installer per Windows x64
-  (NSIS) e macOS Apple Silicon (DMG), checksum SHA-256, release su GitHub con alpha, beta e
+  (NSIS) e macOS Apple Silicon e Intel (DMG), checksum SHA-256, release su GitHub con alpha, beta e
   rc come pre-release.
 - Pulizia automatica: dopo ogni release restano le ultime 3, in ordine di precedenza semantica;
   eseguibile anche a mano in modalità di anteprima.

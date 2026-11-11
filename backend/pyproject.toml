@@ -1,6 +1,6 @@
 [project]
 name = "vyrion-backend"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 description = "Vyrion ERP — backend API (FastAPI)"
 requires-python = ">=3.13"
 dependencies = [
