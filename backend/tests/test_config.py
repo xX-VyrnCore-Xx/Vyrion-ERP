@@ -14,7 +14,8 @@ def make(**overrides: Any) -> Settings:
     return Settings(_env_file=None, **values)
 
 
-def test_valid_settings() -> None:
+def test_defaults_to_development(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("VYRION_ENVIRONMENT", raising=False)
     settings = make()
     assert settings.environment == "development"
     assert not settings.is_production
