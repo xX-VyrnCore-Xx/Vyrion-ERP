@@ -5,6 +5,13 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ## [Unreleased]
 
+### Changed
+
+- **Release automatiche:** ogni modifica all'app che arriva su `main` costruisce gli installer, crea
+  un tag nuovo (il contatore di pre-release sale da solo, sempre sopra ai tag esistenti) e
+  pubblica la release con i file. Non si costruisce più due volte: le build di `main` sono quelle
+  della release. Vedi `docs/RELEASING.md`.
+
 ## [0.1.0-alpha.2] - 2026-11-11
 
 Prima versione con l'app completa: **Vyrion ERP funziona da solo, offline, con i dati cifrati sul computer**,

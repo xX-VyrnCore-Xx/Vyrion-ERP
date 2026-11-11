@@ -1,20 +1,25 @@
 name: Release
 
-# Pushing a tag vX.Y.Z or vX.Y.Z-(alpha|beta|rc).N builds the desktop installers for
-# Windows and macOS (Apple Silicon), publishes a GitHub release and then prunes releases
-# older than the newest three. See docs/RELEASING.md.
+# Every push to main that changes the app builds the Windows and macOS (Apple Silicon)
+# installers, creates a NEW tag and publishes a GitHub release with the files; then the
+# releases older than the newest three are pruned. See docs/RELEASING.md.
 #
-# The same release can be started by hand (Actions -> Release -> Run workflow) with the
-# version number: the workflow then creates the tag itself on the tip of main.
+# The number is chosen automatically (tools/release/next_version.py): the version in the
+# files if it is not tagged yet, otherwise the next pre-release counter. Two other ways in
+# are kept: pushing a tag by hand, and Actions -> Release -> Run workflow with a version.
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version to release, e.g. 0.1.0-alpha.1 (must match the version files on main)"
+        description: "Version to release, e.g. 0.1.0-alpha.3 (must match the version files on main)"
         required: true
         type: string
   push:
+    branches: [main]
+    paths:
+      - "apps/desktop/**"
+      - ".github/workflows/build-desktop.yml"
     tags:
       - "v[0-9]+.[0-9]+.[0-9]+"
       - "v[0-9]+.[0-9]+.[0-9]+-alpha.[0-9]+"
@@ -24,42 +29,71 @@ on:
 permissions:
   contents: read
 
+# One release at a time, whatever started it: numbers are chosen from the tags that exist.
 concurrency:
-  group: release-${{ github.ref }}-${{ inputs.version }}
+  group: release-pipeline
   cancel-in-progress: false
 
 jobs:
   verify:
-    name: Verify version
+    name: Choose the version
     runs-on: ubuntu-24.04
     outputs:
+      release: ${{ steps.meta.outputs.release }}
       tag: ${{ steps.meta.outputs.tag }}
       version: ${{ steps.meta.outputs.version }}
       prerelease: ${{ steps.meta.outputs.prerelease }}
       title: ${{ steps.meta.outputs.title }}
+      automatic: ${{ steps.meta.outputs.automatic }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - name: Tag format and version files
+      - name: Release tooling tests
+        run: python3 -m unittest discover -s tools/release -p "test_*.py"
+      - name: Version, tag and title
         id: meta
         env:
           INPUT_VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
+          git fetch --quiet --tags origin
+          automatic=false
           if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
             if [ "$GITHUB_REF" != "refs/heads/main" ]; then
               echo "::error::start the release from the main branch"
               exit 1
             fi
             tag="v${INPUT_VERSION#v}"
+            python3 tools/release/version.py check --tag "$tag"
+            if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+              echo "::error::tag $tag already exists; use a new version number"
+              exit 1
+            fi
+          elif [ "$GITHUB_EVENT_NAME" = "push" ] && [ "$GITHUB_REF" = "refs/heads/main" ]; then
+            automatic=true
+            python3 tools/release/version.py check
+            current="$(python3 tools/release/version.py get)"
+            # shellcheck disable=SC2046
+            version="$(python3 tools/release/next_version.py "$current" $(git tag --list 'v*'))"
+            if [ -z "$version" ]; then
+              echo "::notice::$current is a stable version that is already released: bump the version to release again"
+              echo "release=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            tag="v$version"
           else
             tag="${GITHUB_REF_NAME}"
+            python3 tools/release/version.py check --tag "$tag"
+            git fetch --quiet origin main
+            if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+              echo "::error::$tag is not on main; releases are cut from main only."
+              exit 1
+            fi
           fi
-          python3 tools/release/version.py check --tag "$tag"
           version="${tag#v}"
           if [[ "$tag" == *-* ]]; then pre=true; else pre=false; fi
-          # "0.1.0-alpha.1" -> "Vyrion ERP 0.1.0 Alpha 1"
+          # "0.1.0-alpha.3" -> "Vyrion ERP 0.1.0 Alpha 3"
           title="$(python3 - "$version" <<'PY'
           import re, sys
           v = sys.argv[1]
@@ -72,44 +106,30 @@ jobs:
           PY
           )"
           {
+            echo "release=true"
+            echo "automatic=$automatic"
             echo "tag=$tag"
             echo "version=$version"
             echo "prerelease=$pre"
             echo "title=$title"
           } >> "$GITHUB_OUTPUT"
-      - name: A pushed tag must point at a commit on main
-        if: github.event_name == 'push'
-        run: |
-          set -euo pipefail
-          git fetch --quiet origin main
-          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
-            echo "::error::$GITHUB_REF_NAME is not on main; releases are cut from main only."
-            exit 1
-          fi
-      - name: The tag must not exist yet (manual start)
-        if: github.event_name == 'workflow_dispatch'
-        env:
-          TAG: ${{ steps.meta.outputs.tag }}
-        run: |
-          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
-            echo "::error::tag $TAG already exists; use a new version number"
-            exit 1
-          fi
-      - name: Release tooling tests
-        run: python3 -m unittest discover -s tools/release -p "test_*.py"
+          echo "::notice::releasing $title as $tag"
 
   build:
     name: Build installers
     needs: verify
+    if: needs.verify.outputs.release == 'true'
     uses: ./.github/workflows/build-desktop.yml
     secrets: inherit # macOS signing and notarization secrets, when present
     with:
       sign: true
       retention-days: 30
+      version: ${{ needs.verify.outputs.version }}
 
   release:
     name: Publish release
     needs: [verify, build]
+    if: needs.verify.outputs.release == 'true'
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -119,6 +139,8 @@ jobs:
       VERSION: ${{ needs.verify.outputs.version }}
       PRERELEASE: ${{ needs.verify.outputs.prerelease }}
       TITLE: ${{ needs.verify.outputs.title }}
+      AUTOMATIC: ${{ needs.verify.outputs.automatic }}
+      SHA: ${{ github.sha }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v4
@@ -146,7 +168,11 @@ jobs:
               echo "> **Versione di anteprima.** Pensata per prove e valutazioni, non per la produzione."
               echo
             fi
-            python3 tools/release/version.py notes "$VERSION"
+            if section="$(python3 tools/release/version.py notes "$VERSION" 2>/dev/null)" && [ -n "$section" ]; then
+              printf '%s\n' "$section"
+            else
+              echo "Build automatica del commit \`${SHA:0:7}\` su \`main\`: l'elenco delle modifiche è sotto."
+            fi
             echo
             echo "## Scarica"
             echo
@@ -167,7 +193,7 @@ jobs:
             # Re-run of a previous attempt: replace the assets, keep the release.
             gh release upload "$TAG" assets/* --clobber
           else
-            flags=(--title "$TITLE" --notes-file notes.md --target "$GITHUB_SHA")
+            flags=(--title "$TITLE" --notes-file notes.md --generate-notes --target "$GITHUB_SHA")
             if [ "$PRERELEASE" = "true" ]; then flags+=(--prerelease); else flags+=(--latest); fi
             gh release create "$TAG" "${flags[@]}" assets/*
           fi
@@ -175,6 +201,7 @@ jobs:
   prune:
     name: Prune old releases
     needs: [verify, release]
+    if: needs.verify.outputs.release == 'true'
     permissions:
       contents: write
     uses: ./.github/workflows/prune-releases.yml

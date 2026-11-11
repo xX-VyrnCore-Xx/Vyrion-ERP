@@ -40,34 +40,48 @@ python3 tools/release/version.py check
 
 ## Come si pubblica
 
-Ci sono due modi equivalenti. In entrambi la release prende il titolo dal numero di versione
-(`0.1.0-alpha.1` → **Vyrion ERP 0.1.0 Alpha 1**) e i file hanno nomi leggibili.
+**Di norma non si fa nulla: la release è automatica.** Ogni volta che una modifica a
+`apps/desktop/` (o a `build-desktop.yml`) arriva su `main`, il workflow *Release* costruisce gli
+installer, crea un **tag nuovo** e pubblica la release con i file. Se la build fallisce non esce
+nessuna release.
 
-**A. Dall'interfaccia di GitHub (consigliato):** *Actions → Release → Run workflow* sul ramo
-`main`, scrivendo la versione (per esempio `0.1.0-alpha.1`). Il workflow controlla che i file di
-versione coincidano, rifiuta una versione già pubblicata, costruisce gli installer e **crea da solo
-il tag** sulla punta di `main`.
+Il numero lo sceglie `tools/release/next_version.py`:
+
+| Situazione | Versione rilasciata |
+| --- | --- |
+| La versione nei file non ha ancora un tag (es. `0.1.0-alpha.2`) | quella dei file |
+| Esiste già il tag di quella versione | il contatore sale: `0.1.0-alpha.3`, `…alpha.4`, … sempre più alto di qualunque tag esistente della stessa linea |
+| Versione stabile (`1.0.0`) già rilasciata | nessuna release: alza la versione nei file |
+| È uscita la versione stabile della linea | nessuna release di pre-release di quella linea |
+
+La versione scelta viene scritta **solo nella copia di lavoro della build** (non viene committata),
+così installer, nome del file e tag coincidono; i file del repository restano alla versione che
+decidi tu. Per cambiare linea o canale (per esempio `beta` o `0.2.0`) imposta la versione con
+`version.py set` e fai il commit come sempre.
+
+Le note della release usano la sezione del `CHANGELOG.md` della versione, se esiste; per le build
+automatiche senza sezione, il commit e l'elenco delle modifiche generato da GitHub. Si rilascia **una
+alla volta** (gruppo di concorrenza comune): se arrivano due modifiche ravvicinate, la seconda
+attende e prende il numero successivo. Le modifiche che non toccano l'app (solo backend, documenti)
+non producono installer né release.
+
+Restano due modi manuali:
+
+**A. Da GitHub:** *Actions → Release → Run workflow* sul ramo `main`, con la versione scritta nei
+file (per esempio `0.1.0-alpha.3`). Rifiuta una versione già pubblicata.
 
 **B. Da terminale:** crea e invia il tag, come descritto sotto.
-
-1. Aggiorna `CHANGELOG.md`: sposta il contenuto di `[Unreleased]` in una sezione
-   `## [0.2.0-alpha.1] - AAAA-MM-GG`. Il testo di quella sezione diventa la parte iniziale delle
-   note di rilascio, seguita dalle note generate da GitHub.
-2. Imposta la versione con `version.py set` (vedi sopra) e fai il commit su `main` tramite PR.
-3. Con `main` aggiornato, crea e invia il tag:
-
-```bash
-git tag v0.2.0-alpha.1 && git push origin v0.2.0-alpha.1
-```
 
 ## Cosa fa la pipeline
 
 Workflow: `.github/workflows/release.yml`, che usa la stessa definizione di build delle pull
-request (`build-desktop.yml`): ciò che si rilascia è ciò che la CI ha già costruito.
+request (`build-desktop.yml`): ciò che si rilascia è ciò che la CI ha già costruito. Le build di
+`main` passano tutte da qui (`build.yml` si occupa solo delle pull request), quindi non si costruisce
+due volte.
 
 | Job | Compito |
 | --- | --- |
-| `verify` | Il tag ha il formato giusto; **tutti i file di versione coincidono con il tag**; il commit è su `main`; i test degli strumenti passano |
+| `verify` | I test degli strumenti passano; sceglie versione e tag (automatica su `main`); per i tag manuali: formato giusto, **file di versione uguali al tag**, commit su `main` |
 | `build` | Due installer in parallelo (uno che fallisce non ferma l'altro), firmati se i segreti esistono |
 | `release` | Calcola gli `SHA256SUMS.txt`, compone le note, crea la release e allega i file |
 | `prune` | Elimina le release oltre le ultime 3 (solo se `release` è riuscito) |
