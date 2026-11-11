@@ -2,15 +2,20 @@
 
 ## Stato attuale
 
-Migrazioni: `0001` (baseline) e `0002` (tabelle di base). Le tabelle dei moduli ERP, CRM e IT
-arrivano dalle milestone 7–9.
+Migrazioni: `0001` (baseline), `0002` (tabelle di base) e `0003` (autenticazione). Le tabelle dei
+moduli ERP, CRM e IT arrivano dalle milestone 7–9.
 
 | Tabella | Contenuto |
 | --- | --- |
 | `companies` | L'azienda proprietaria dell'installazione: **una sola riga**, imposta dal database |
-| `users` | Utenti (soft delete). Le credenziali arrivano con la milestone 4 |
+| `users` | Utenti (soft delete) con hash della password, contatori di blocco e seme 2FA cifrato |
 | `roles`, `permissions` | Ruoli e catalogo dei permessi |
-| `user_roles`, `role_permissions` | Assegnazioni |
+| `user_roles`, `role_permissions`, `user_permissions` | Assegnazioni (le ultime sono concessioni dirette a un utente) |
+| `auth_sessions` | Un dispositivo connesso: hash dei token, scadenze, revoca, indirizzo e client |
+| `login_challenges` | Sfida 2FA dopo la password corretta (5 minuti, 5 tentativi) |
+| `password_setup_tokens` | Token monouso per scegliere o reimpostare la password (solo hash) |
+| `recovery_codes` | Codici di recupero 2FA (solo hash, monouso) |
+| `login_events` | Storico degli accessi, **solo in aggiunta** |
 | `audit_log` | Registro delle modifiche, **solo in aggiunta** |
 
 ### Regole imposte dal database
@@ -20,7 +25,7 @@ Valgono anche per scritture che aggirano l'applicazione:
 - `companies`: al massimo una riga; `legal_form` e `tax_regime` ammettono solo i valori previsti;
   il **forfettario è ammesso solo per la ditta individuale** (`CHECK`).
 - `users`: l'email è univoca tra gli utenti non eliminati (indice parziale).
-- `audit_log`: trigger che rifiutano `UPDATE`, `DELETE` e `TRUNCATE`.
+- `audit_log` e `login_events`: trigger che rifiutano `UPDATE`, `DELETE` e `TRUNCATE`.
 - `user_roles.role_id` è `RESTRICT`: un ruolo assegnato non si elimina.
 
 ### Reference data
@@ -32,6 +37,17 @@ permessi rimossi dal codice spariscono, i ruoli personalizzati non vengono tocca
 
 Ruoli di sistema: `super_admin`, `admin`, `manager`, `employee`, `collaborator`. Non sono
 modificabili. Gli altri ruoli sono personalizzati e si creano combinando permessi del catalogo.
+
+### Credenziali e sessioni
+
+- I token (accesso, rinnovo, sfida, setup) **non sono mai salvati**: solo il loro hash SHA-256, con
+  indice univoco. Le password sono in Argon2id; il seme TOTP è cifrato (Fernet).
+- I contatori che cambiano a ogni tentativo (`failed_login_count`, `totp_last_step`,
+  `last_used_at`) si aggiornano con **SQL atomico** e **non incrementano `version`**, che resta il
+  contatore delle modifiche fatte da persone. Altrimenti due accessi simultanei darebbero un
+  conflitto di versione.
+- Le sessioni scadute o revocate si eliminano dopo 7 giorni (`python -m app.cli bootstrap`): fino
+  ad allora servono a riconoscere il riuso di un token di rinnovo.
 
 ### Concorrenza e audit
 

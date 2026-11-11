@@ -2,9 +2,8 @@ import pytest
 from httpx import AsyncClient
 
 from app import __version__
-from app.core.config import Settings
 from app.main import create_app
-from tests.conftest import UNREACHABLE_DATABASE_URL, UNREACHABLE_REDIS_URL
+from tests.conftest import make_settings
 
 
 async def test_live_does_not_depend_on_services(offline_client: AsyncClient) -> None:
@@ -36,12 +35,7 @@ async def test_cors_allows_desktop_origin_only(offline_client: AsyncClient) -> N
 
 
 def test_api_docs_disabled_in_production() -> None:
-    settings = Settings(
-        _env_file=None,
-        environment="production",
-        database_url=UNREACHABLE_DATABASE_URL,
-        redis_url=UNREACHABLE_REDIS_URL,
-    )
+    settings = make_settings(environment="production", argon2_memory_kib=65_536, argon2_time_cost=3)
     app = create_app(settings)
     assert app.docs_url is None
     assert app.openapi_url is None

@@ -28,6 +28,7 @@ Compila `.env`:
 | `VYRION_SERVER_NAME` | Nome usato dai client, es. `erp.vyrncore.lan` |
 | `VYRION_BIND_ADDRESS` | Indirizzo del server su `wg0`. **Mai `0.0.0.0`** |
 | `POSTGRES_PASSWORD`, `REDIS_PASSWORD` | Generate con `openssl rand -hex 32` |
+| `ENCRYPTION_KEYS` | Chiave che cifra i segreti nel database. `openssl rand -base64 32 \| tr '+/' '-_'`. **Conservane una copia fuori dal server** |
 
 Avvio:
 
@@ -39,7 +40,21 @@ docker compose up -d --build
 docker compose ps
 ```
 
-Il backend applica le migrazioni all'avvio. Tutti i servizi devono risultare `healthy`.
+Il backend applica le migrazioni e sincronizza permessi e ruoli di sistema all'avvio. Tutti i
+servizi devono risultare `healthy`.
+
+## Primo amministratore
+
+Il sistema parte senza utenti. Il primo amministratore principale si crea dal server, digitando la
+password al terminale (non si passa mai da riga di comando né da variabile d'ambiente):
+
+```bash
+docker compose exec backend python -m app.cli create-admin --email nome@vyrncore.lan --name "Nome Cognome"
+```
+
+Il comando rifiuta di creare un secondo amministratore principale e una password debole. Gli altri
+utenti si creano poi dall'applicazione: ognuno riceve un **token monouso** per scegliere la propria
+password, che l'amministratore gli consegna in un canale fidato.
 
 ## Verifica
 

@@ -77,6 +77,33 @@ unconfigured ──(indirizzo salvato)──► checking ──► online ◄─
 Il client **non dipende dal tipo di VPN**: verifica la raggiungibilità HTTPS del backend. WireGuard
 è gestito dal sistema operativo.
 
+## Accesso e autorizzazione
+
+```
+client ──POST /auth/login──► limite per indirizzo ─► blocco account? ─► verifica Argon2id
+                                                                          │
+                          ┌──────────── 2FA attivo? ◄─────────────────────┘
+                          ▼ sì                                  no ▼
+              sfida (5 min, 5 tentativi)                     apre la sessione
+                          │ TOTP o codice di recupero               │
+                          └────────────────────────────────────────►│
+                                                                    ▼
+                               access token (15 min) + refresh token (rotante)
+
+richiesta ──► Bearer ──► sessione valida e non revocata? ──► utente attivo? ──► permessi da ruoli
+                                                                               + concessioni dirette
+                                                                                       │
+                                            require("modulo.risorsa:azione") ◄─────────┘
+```
+
+- **Token opachi con stato nel database**, non JWT: una revoca o una disattivazione hanno effetto
+  alla richiesta successiva, senza aspettare una scadenza. Il costo è una lettura per richiesta.
+- **Le sessioni si aprono solo in `AuthService`**; le rotte non toccano mai password o token.
+- **Un errore non cancella i suoi effetti di sicurezza:** i tentativi falliti vengono confermati
+  nel database prima di restituire l'errore, altrimenti il rollback cancellerebbe il contatore.
+- **Un livello di servizi** (`app/services`) applica le regole; le rotte (`app/api/v1`) validano,
+  chiamano il servizio e confermano la transazione.
+
 ## Decisioni rilevanti
 
 | Decisione | Motivo |

@@ -7,7 +7,19 @@ exposes these tables.
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text, func, text
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    false,
+    func,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -30,8 +42,36 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, VersionedMixin, SoftDeleteMixin,
     full_name: Mapped[str] = mapped_column(String(200), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
+    # --- Credentials. These columns change on every login, so they are updated with
+    # atomic SQL and never bump ``version`` (which tracks edits made by people).
+    password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    password_changed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    failed_login_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # --- Second factor. The TOTP secret is stored encrypted (Fernet); it is "pending"
+    # until ``totp_enabled`` is true. ``totp_last_step`` blocks reuse of a code.
+    totp_secret_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
+    totp_enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
+    totp_last_step: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+
+    @property
+    def has_password(self) -> bool:
+        return self.password_hash is not None
+
     roles: Mapped[list["Role"]] = relationship(
         secondary="user_roles", lazy="selectin", order_by="Role.key"
+    )
+    # Permissions granted to this user in addition to those of their roles.
+    direct_permissions: Mapped[list["Permission"]] = relationship(
+        secondary="user_permissions", lazy="selectin", order_by="Permission.key"
     )
 
 
@@ -84,6 +124,17 @@ class RolePermission(Base):
 
     role_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True
+    )
+    permission_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("permissions.id", ondelete="CASCADE"), primary_key=True, index=True
+    )
+
+
+class UserPermission(Base):
+    __tablename__ = "user_permissions"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
     )
     permission_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("permissions.id", ondelete="CASCADE"), primary_key=True, index=True

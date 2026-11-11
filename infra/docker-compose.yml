@@ -48,6 +48,8 @@ services:
       VYRION_ENVIRONMENT: ${VYRION_ENVIRONMENT:-production}
       VYRION_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       VYRION_REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      # Fernet key(s) protecting stored secrets (2FA seeds). Comma-separated; first one encrypts.
+      VYRION_ENCRYPTION_KEYS: ${ENCRYPTION_KEYS:?required}
     read_only: true
     tmpfs: [/tmp]
     cap_drop: [ALL]

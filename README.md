@@ -10,8 +10,8 @@ un'unica applicazione desktop (Windows e macOS) collegata al server aziendale tr
 
 | Area | Implementato |
 | --- | --- |
-| Backend | FastAPI con probe `live` / `ready` che verificano realmente PostgreSQL e Redis |
-| Database | SQLAlchemy 2 + Alembic con catena di migrazioni avviata (baseline) |
+| Backend | FastAPI: accesso con Argon2id e 2FA, sessioni revocabili, RBAC applicato dal server, utenti, ruoli, azienda, audit; probe `live` / `ready` reali |
+| Database | SQLAlchemy 2 + Alembic: azienda, utenti, ruoli, permessi, sessioni, audit e storico accessi immutabili |
 | Desktop | Shell Tauri 2 + React: stato della connessione al server, riconnessione automatica, tema scuro/chiaro |
 | Server | Docker Compose: PostgreSQL, Redis, backend, proxy HTTPS esposto solo sull'interfaccia VPN |
 | CI | Lint, type-check, test unitari e di integrazione, audit dipendenze, build immagine |
@@ -40,7 +40,10 @@ cd backend
 uv sync
 export VYRION_DATABASE_URL=postgresql+psycopg://vyrion:<password>@127.0.0.1:5432/vyrion
 export VYRION_REDIS_URL=redis://127.0.0.1:6379/0
+export VYRION_ENCRYPTION_KEYS=$(uv run python -m app.cli generate-key)   # solo per lo sviluppo
 uv run alembic upgrade head
+uv run python -m app.cli bootstrap                                    # permessi e ruoli di sistema
+uv run python -m app.cli create-admin --email tu@esempio.it --name "Nome Cognome"
 uv run uvicorn app.main:create_app --factory --reload
 ```
 

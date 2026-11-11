@@ -77,7 +77,7 @@ finché una fonte non è collegata, il relativo widget mostra "non configurato",
 
 | Funzione | Milestone |
 | --- | --- |
-| Utenti, ruoli, permessi, audit | 4 |
+| Utenti, ruoli, permessi, audit, accesso e 2FA | 4 ✅ |
 | Dashboard personalizzabile, ricerca globale, notifiche | 5 |
 | Sincronizzazione offline | 6 |
 | Backup e ripristino guidato | 10 |

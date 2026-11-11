@@ -5,6 +5,32 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ## [Unreleased]
 
+Milestone 4 (autenticazione e autorizzazioni).
+
+### Added
+
+- Accesso con Argon2id; token opachi di sessione (accesso 15 minuti, rinnovo 14 giorni, durata
+  massima 30 giorni) con rotazione del refresh token e rilevamento del riuso.
+- 2FA TOTP con 10 codici di recupero monouso, seme cifrato nel database, anti-riuso dei codici.
+- Protezione dalla forza bruta: blocco dell'account, limite per indirizzo e sull'intera API.
+- RBAC applicato dal backend su ogni rotta, con concessioni dirette ai singoli utenti e regole
+  anti-escalation dei privilegi.
+- API di autenticazione, utenti, ruoli, azienda e registro di audit (vedi `docs/API.md`).
+- Disconnessione da tutti i dispositivi, propria o di un utente; elenco e revoca dei dispositivi.
+- Token monouso per scegliere o reimpostare la password: nessuna password temporanea.
+- Storico degli accessi immutabile; identificativo di richiesta (`X-Request-ID`) nell'audit.
+- Migrazione `0003`; comandi `python -m app.cli create-admin` e `generate-key`; pulizia
+  automatica di sessioni e token scaduti in `bootstrap`.
+- Chiave di cifratura (`ENCRYPTION_KEYS`) nella configurazione di Compose.
+
+### Changed
+
+- Migrazioni e `bootstrap` richiedono solo l'URL del database, non i segreti applicativi.
+- Il backend non parte senza almeno una chiave di cifratura valida.
+- Dietro il proxy il backend si fida delle intestazioni `X-Forwarded-*` (rete interna di Docker),
+  così limiti e audit vedono l'indirizzo reale del client.
+- La politica delle password rifiuta qualsiasi password che contenga l'indirizzo email intero.
+
 ## [0.1.0-alpha.1] - 2026-11-11
 
 Primo rilascio: fondamenta del progetto (milestone 1, 2 e 3) e pipeline di rilascio.

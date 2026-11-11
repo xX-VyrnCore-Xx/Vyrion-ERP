@@ -18,6 +18,7 @@
 | PostgreSQL | `pg_dump` formato custom; in seguito WAL per ripristino a un istante | Giornaliera |
 | Documenti e allegati | Copia incrementale dal NAS | Giornaliera |
 | Configurazioni | `infra/` senza segreti; segreti in archivio cifrato separato | A ogni modifica |
+| **Chiave di cifratura** (`ENCRYPTION_KEYS`) | Copia cifrata **fuori dal server e dal NAS** | A ogni modifica |
 | Stato della sincronizzazione | Incluso nel dump PostgreSQL | Giornaliera |
 
 ## Destinazioni

@@ -61,7 +61,7 @@ async def _ensure_email_free(
 async def create_user(session: AsyncSession, data: UserCreate, context: AuditContext) -> User:
     await _ensure_email_free(session, data.email)
     # roles=[] marks the collection as loaded: no lazy query on first access.
-    user = User(email=data.email, full_name=data.full_name, roles=[])
+    user = User(email=data.email, full_name=data.full_name, roles=[], direct_permissions=[])
     session.add(user)
     await _flush_unique_email(session)
     audit.record(
@@ -153,10 +153,3 @@ async def set_user_roles(
         changes={"roles": {"old": before, "new": after}},
     )
     return user
-
-
-def effective_permissions(user: User) -> frozenset[str]:
-    """Permission keys granted through the user's roles; none if the account is off."""
-    if not user.is_active or user.is_deleted:
-        return frozenset()
-    return frozenset(permission.key for role in user.roles for permission in role.permissions)

@@ -8,8 +8,8 @@ documentata**. Nessuna funzione viene mostrata nell'interfaccia prima di avere u
 | 1 | Architettura e repository | ✅ Completata |
 | 2 | Configurazione dell'ambiente | ✅ Completata |
 | 3 | Database e backend | ✅ Completata |
-| 4 | Autenticazione e autorizzazioni | ⏳ Prossima |
-| 5 | Applicazione desktop | Pianificata |
+| 4 | Autenticazione e autorizzazioni | ✅ Completata |
+| 5 | Applicazione desktop | ⏳ Prossima |
 | 6 | Sistema di sincronizzazione | Pianificata |
 | 7 | Moduli ERP | Pianificata |
 | 8 | Moduli CRM | Pianificata |
@@ -62,10 +62,45 @@ runner dedicati e certificati di firma.
 controllo dei permessi lato server (M4) esporli sarebbe una falla; i servizi sono pronti e
 verranno collegati ai router con i permessi già definiti.
 
-## M4 — Autenticazione e autorizzazioni
+## M4 — Autenticazione e autorizzazioni ✅
 
-Argon2id, sessioni, refresh token a rotazione, 2FA TOTP, protezione brute force, blocco account,
-revoca sessioni e disconnessione globale, RBAC con permessi granulari verificati dal backend.
+- Accesso con **Argon2id**, **2FA TOTP** con codici di recupero, sessioni con token opachi di breve
+  durata, **rotazione del refresh token con rilevamento del riuso**, disconnessione da tutti i
+  dispositivi (propria e, per gli amministratori, di un utente).
+- **Protezione dalla forza bruta:** blocco dell'account, limite per indirizzo e sull'intera API
+  (Redis), risposte indistinguibili tra account esistenti e no.
+- **RBAC applicato dal backend** su tutte le rotte, con concessioni dirette ai singoli utenti e
+  regole anti-escalation. Utenti, ruoli, azienda e audit log esposti via API.
+- Nessuna password temporanea: **token monouso** per il primo accesso e i reset.
+- Storico degli accessi e audit log immutabili; seme 2FA cifrato (Fernet, chiavi ruotabili).
+- Comando `python -m app.cli create-admin` per il primo amministratore.
+- Dettagli in [SECURITY.md](../SECURITY.md) e [API.md](API.md).
+
+Verifiche eseguite:
+
+| Verifica | Esito |
+| --- | --- |
+| Backend: ruff, mypy strict, `pip-audit` | Superati |
+| 230 test (150 su PostgreSQL e Redis reali; 80 senza servizi) | Superati |
+| TOTP verificato con i vettori di prova dell'RFC 6238 | Superato |
+| Prova di mutazione: 7 errori inseriti apposta nei punti critici (controllo permessi, anti-escalation, ruoli protetti, rilevamento del riuso, anti-riuso TOTP, blocco account, sessione revocata) | Tutti scoperti dai test |
+| Percorso completo su un **server reale** (uvicorn, database pulito, Argon2id ai parametri di produzione): primo amministratore da terminale, azienda, invito, impostazione password, ruoli, 2FA, riuso di un codice, blocco | Superato, log del server senza errori né segreti |
+| Migrazione `0003`: su, giù, su; nessuna deriva | Superata |
+
+La prova sul server reale ha trovato un difetto che i test non coprivano (il blocco cacciava anche
+le sessioni già aperte del titolare): corretto e coperto da test.
+
+Verificata anche la **stringa di avvio esatta del container**, estratta dal Dockerfile e eseguita
+fuori da Docker su un database vuoto: migrazioni da zero, `bootstrap`, uvicorn, e l'indirizzo del
+client passato dal proxy (`X-Forwarded-For`) finisce nello storico accessi e nel limitatore.
+
+Non verificato: l'**immagine Docker e lo stack Compose completo** con le nuove variabili (Docker
+Hub ha rifiutato gli scaricamenti per limite di richieste; la CI costruisce l'immagine ma non la
+avvia) e i tempi sotto carico reale.
+
+Rimandato di proposito (vedi [SECURITY.md](../SECURITY.md)): 2FA obbligatorio per gli
+amministratori, rigenerazione dei codici di recupero, permessi sul singolo record (servono con il
+primo modulo che li usa).
 
 ## M5 — Applicazione desktop
 

@@ -25,10 +25,10 @@ from app.services.access import (
     sync_access_catalog,
 )
 from app.services.audit import SYSTEM, AuditContext, record
+from app.services.authz import effective_permissions
 from app.services.users import (
     create_user,
     delete_user,
-    effective_permissions,
     get_user,
     list_users,
     set_user_roles,
