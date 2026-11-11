@@ -1,0 +1,84 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* Design tokens. Dark is the primary theme; light overrides the same variables. */
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0b0b0f;
+  --surface: #131318;
+  --surface-raised: #1a1a21;
+  --border: #26262f;
+  --text: #ededf2;
+  --text-muted: #9a9aa8;
+  --accent: #8b7cf6;
+  --accent-strong: #7463f0;
+  --accent-contrast: #0b0b0f;
+  --info: #5b9cf5;
+  --success: #3fcf8e;
+  --warning: #f0b23e;
+  --danger: #f2617a;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f6f6f9;
+  --surface: #ffffff;
+  --surface-raised: #f0f0f5;
+  --border: #dcdce6;
+  --text: #15151c;
+  --text-muted: #5d5d6e;
+  --accent: #6250e0;
+  --accent-strong: #5140cc;
+  --accent-contrast: #ffffff;
+  --info: #2f6fd6;
+  --success: #15915a;
+  --warning: #a86a00;
+  --danger: #cc2f4d;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-raised: var(--surface-raised);
+  --color-line: var(--border);
+  --color-fg: var(--text);
+  --color-muted: var(--text-muted);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-contrast: var(--accent-contrast);
+  --color-info: var(--info);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
