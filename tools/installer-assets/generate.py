@@ -94,8 +94,19 @@ def dmg() -> None:
     img.paste(band, (0, 0))
     mark(d, (28, 24, 60, 56))
     d.text((72, 40), "Vyrion ERP", font=font(BOLD, 20), fill=TEXT, anchor="lm")
-    d.text((w // 2, 316), "Trascina Vyrion ERP nella cartella Applicazioni", font=font(FONTS, 15), fill=TEXT, anchor="ma")
-    d.text((w // 2, 342), "Al primo avvio l'app chiede i dati dell'azienda e parte subito, senza server.", font=font(FONTS, 11), fill=MUTED, anchor="ma")
+    # numbered steps
+    f_b, f_s = font(BOLD, 13), font(FONTS, 11)
+    steps = [
+        ("1", "Trascina Vyrion ERP in Applicazioni"),
+        ("2", "Apri l'app: se macOS la blocca, tasto destro \u2192 Apri"),
+        ("3", "Per disinstallare: trascina l'app nel Cestino"),
+    ]
+    for i, (n, text) in enumerate(steps):
+        y = 292 + i * 26
+        d.ellipse((60, y - 10, 80, y + 10), fill=ACCENT_A)
+        d.text((70, y), n, font=f_b, fill=BG, anchor="mm")
+        d.text((92, y), text, font=f_s if i else font(BOLD, 12), fill=TEXT if i == 0 else MUTED, anchor="lm")
+    d.text((w - 28, h - 16), "Funziona offline, senza server", font=f_s, fill=MUTED, anchor="rm")
     # arrow between the app icon (x=180) and the Applications folder (x=480)
     d.line((250, 190, 410, 190), fill=ACCENT_B, width=4)
     d.polygon([(412, 176), (440, 190), (412, 204)], fill=ACCENT_B)

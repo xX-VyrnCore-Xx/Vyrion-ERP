@@ -5,6 +5,14 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ## [Unreleased]
 
+### Changed
+
+- **Installer Windows:** a fine installazione chiede se avviare Vyrion ERP con Windows (resta nella
+  tray); la disinstallazione toglie la voce di avvio e, se scegli di eliminare i dati, anche la
+  chiave di cifratura salvata in Gestione credenziali.
+- **DMG macOS:** lo sfondo ora mostra i tre passaggi (trascina, apri con tasto destro se bloccata,
+  disinstalla trascinando nel Cestino).
+
 ### Fixed
 
 - **Windows: «Esci definitivamente» ora chiude tutto.** L'uscita dalla tray chiude icona e
