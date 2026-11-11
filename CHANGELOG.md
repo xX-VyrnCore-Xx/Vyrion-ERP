@@ -7,8 +7,20 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ### Changed
 
+- **Configurazione dell'azienda in un secondo momento.** All'avvio non c'è più la schermata
+  obbligatoria: tutti i moduli sono subito utilizzabili e un avviso (con «Completa ora») ricorda
+  di inserire i dati aziendali, necessari solo per emettere documenti.
+- **Grafica e fluidità:** menu a tendina uniformi, anello di focus, scorrimento sottile,
+  transizione tra le pagine, colonne della pipeline adattive con stato vuoto; le pagine si
+  caricano su richiesta (avvio più rapido), la ricerca nelle liste non interroga il database a
+  ogni tasto.
+- **Backend:** database locale con cache più ampia e file temporanei in memoria; il server
+  comprime le risposte JSON grandi (sincronizzazione, elenchi).
+- **Installer Windows:** a fine installazione chiede se avviare Vyrion ERP con Windows (resta nella
+  tray); la disinstallazione toglie la voce di avvio e, se scegli di eliminare i dati, anche la
+  chiave di cifratura salvata in Gestione credenziali.
 - **DMG macOS ridisegnato:** titolo, due piastre dietro le icone (restano leggibili con il tema
-  chiaro e scuro), freccia «trascina» e un riquadro con i tre passaggi; se macOS dice «danneggiata»
+  chiaro e scuro), freccia «trascina» e un riquadro con i tre passaggi. Se macOS dice «danneggiata»
   (l'app è firmata ma non notarizzata da Apple, e il browser aggiunge la quarantena al download)
   il comando da incollare nel Terminale è scritto nella finestra.
 
