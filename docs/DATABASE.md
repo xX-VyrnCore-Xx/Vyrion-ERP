@@ -49,7 +49,7 @@ Questo documento fissa anche le convenzioni che ogni tabella futura dovrà rispe
 
 | Database | Posizione | Ruolo |
 | --- | --- | --- |
-| PostgreSQL 16 | Server aziendale, volume locale | Fonte di verità |
+| PostgreSQL 18 | Server aziendale, volume locale | Fonte di verità |
 | SQLite | Ogni postazione | Copia di lavoro offline e coda di sincronizzazione (M6) |
 
 PostgreSQL risiede su storage locale affidabile del server. **Non va collocato su una condivisione

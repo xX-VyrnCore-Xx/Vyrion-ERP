@@ -18,6 +18,14 @@ Milestone 3 (database e backend).
   all'avvio del container.
 - Validazione di partita IVA e struttura del codice fiscale.
 
+### Changed
+
+- Aggiornamenti delle dipendenze: Python 3.15, PostgreSQL 18, Redis 8 (immagini Docker e servizi
+  di CI); `actions/checkout` 7, `actions/setup-node` 7, `pnpm/action-setup` 6,
+  `astral-sh/setup-uv` 7.
+- Il volume di PostgreSQL è montato su `/var/lib/postgresql`, come richiesto dalle immagini 18+.
+  Un'installazione esistente con dati PostgreSQL 16 richiede `pg_upgrade` o dump e ripristino.
+
 ## [0.1.0-alpha.1] - 2026-11-11
 
 Milestone 1 (architettura e repository) e 2 (configurazione dell'ambiente).
@@ -32,7 +40,7 @@ Milestone 1 (architettura e repository) e 2 (configurazione dell'ambiente).
 - Applicazione desktop Tauri 2 + React + TypeScript + Tailwind: configurazione dell'indirizzo del
   server, stato della connessione con retry esponenziale e riconnessione automatica, tema scuro e
   chiaro, informazioni sulla piattaforma.
-- Stack Docker Compose: PostgreSQL 16, Redis 7, backend, proxy HTTPS Caddy legato all'indirizzo VPN.
+- Stack Docker Compose: PostgreSQL, Redis, backend, proxy HTTPS Caddy legato all'indirizzo VPN.
 - CI GitHub Actions: lint, type-check, test unitari e di integrazione, audit delle dipendenze,
   validazione Compose e build dell'immagine.
 - Configurazione Dependabot.

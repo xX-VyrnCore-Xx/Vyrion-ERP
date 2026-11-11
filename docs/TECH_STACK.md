@@ -28,7 +28,7 @@ TypeScript resta alla 6 finché `typescript-eslint` non supporta la 7.
 
 | Tecnologia | Versione | Uso |
 | --- | --- | --- |
-| Python | 3.13 | Runtime |
+| Python | 3.15 | Runtime |
 | FastAPI | 0.162+ | API REST, OpenAPI |
 | Pydantic / pydantic-settings | 2 | Validazione e configurazione |
 | SQLAlchemy | 2.1 (asyncio) | ORM |
@@ -42,9 +42,9 @@ TypeScript resta alla 6 finché `typescript-eslint` non supporta la 7.
 
 | Tecnologia | Versione | Uso |
 | --- | --- | --- |
-| PostgreSQL | 16 | Database centrale |
+| PostgreSQL | 18 | Database centrale |
 | SQLite | — | Database locale offline (dalla M6) |
-| Redis | 7 | Cache, code, rate limiting (dalla M4) |
+| Redis | 8 | Cache, code, rate limiting (dalla M4) |
 | Docker Compose | v2+ | Orchestrazione dei servizi |
 | Caddy | 2 | Proxy HTTPS |
 | Ubuntu Server su Proxmox VE | 24.04 LTS | Host |
