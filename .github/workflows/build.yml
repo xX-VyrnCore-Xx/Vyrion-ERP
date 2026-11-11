@@ -1,8 +1,8 @@
 name: Build
 
-# Builds the Windows and macOS (Apple Silicon) installers on every change that can affect
-# them, so a broken build is found on the pull request and not on release day. The
-# installers are unsigned and kept for a week; releases are cut by release.yml.
+# Builds the Windows and macOS (Apple Silicon) installers on every pull request that can
+# affect them, so a broken build is found before the merge. The installers are unsigned and
+# kept for a week. Builds of main are made by release.yml, which publishes them.
 
 on:
   pull_request:
@@ -10,11 +10,6 @@ on:
       - "apps/desktop/**"
       - "tools/release/**"
       - ".github/workflows/build.yml"
-      - ".github/workflows/build-desktop.yml"
-  push:
-    branches: [main]
-    paths:
-      - "apps/desktop/**"
       - ".github/workflows/build-desktop.yml"
   workflow_dispatch:
 

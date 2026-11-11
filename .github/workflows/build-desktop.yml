@@ -18,6 +18,12 @@ on:
         description: How long the installers are kept as workflow artifacts
         type: number
         default: 7
+      version:
+        description: >-
+          Version to build. When empty, the version written in the files is used; when set
+          (automatic releases from main) it is written into the build's working copy only.
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -31,10 +37,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - id: read
+        env:
+          OVERRIDE: ${{ inputs.version }}
         run: |
           set -euo pipefail
           python3 tools/release/version.py check
-          echo "version=$(python3 tools/release/version.py get)" >> "$GITHUB_OUTPUT"
+          echo "version=${OVERRIDE:-$(python3 tools/release/version.py get)}" >> "$GITHUB_OUTPUT"
 
   build:
     name: Build ${{ matrix.name }}
@@ -69,6 +77,16 @@ jobs:
       VITE_APP_COMMIT: ${{ github.sha }}
     steps:
       - uses: actions/checkout@v7
+      # Automatic releases number themselves: the version is written into this build's
+      # working copy (not committed) so the installer, its file name and the tag agree.
+      - name: Apply the release version
+        if: inputs.version != ''
+        working-directory: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          py="$(command -v python3 || command -v python)"
+          "$py" tools/release/version.py set "$VERSION"
+          "$py" tools/release/version.py check
       - uses: pnpm/action-setup@v6
         with:
           package_json_file: apps/desktop/package.json
