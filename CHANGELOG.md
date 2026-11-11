@@ -11,8 +11,9 @@ Primo rilascio pubblico: **Vyrion ERP funziona da solo, offline, con i dati cifr
 con una prima implementazione reale dei moduli CRM, ERP e IT. Il collegamento a un server
 aziendale è facoltativo e successivo.
 
-**Anteprima tecnica (alpha).** La sincronizzazione con il server, l'integrazione email, la
-fatturazione elettronica (XML FatturaPA, SDI) e i PDF dei documenti non sono ancora disponibili.
+**Anteprima tecnica (alpha).** L'integrazione email, la fatturazione elettronica (XML FatturaPA,
+SDI) e i PDF dei documenti non sono ancora disponibili; con più dispositivi la numerazione delle
+fatture va emessa da uno solo (vedi `docs/SYNC_ENGINE.md`).
 Gli installer non sono firmati: Windows mostrerà l'avviso «editore sconosciuto» e macOS richiede
 clic destro → Apri al primo avvio.
 
@@ -34,7 +35,13 @@ clic destro → Apri al primo avvio.
   licenze, backup, eventi di sicurezza, controlli di raggiungibilità, documentazione tecnica.
 - Panoramica con indicatori reali e personalizzabile, notifiche calcolate dai dati, ricerca globale,
   storico delle modifiche per record.
-- Il collegamento al server è **facoltativo** e successivo (vedi `docs/SYNC_ENGINE.md`).
+- **Sincronizzazione con il server** (facoltativa, attivabile in qualsiasi momento): invio e ricezione
+  idempotenti, unione automatica dei campi diversi, conflitti mostrati con le due versioni, nessun
+  dato contabile unito in automatico, adozione dei dati già inseriti al primo collegamento. API
+  `POST /sync/push` e `GET /sync/pull`, permessi `core.sync:view` e `core.sync:update`, migrazione `0004`.
+- Installer con procedura guidata curata (Windows: grafica, condizioni d'uso, cartella Start;
+  macOS: sfondo del DMG) e release con titolo e nomi dei file leggibili; la release si può avviare
+  da GitHub (Actions → Release) senza creare il tag a mano.
 
 - Workflow `build.yml`: gli installer Windows e macOS (Apple Silicon) si costruiscono a ogni
   modifica dell'app desktop, con prove reali (installazione e rimozione su Windows, verifica
@@ -57,7 +64,8 @@ clic destro → Apri al primo avvio.
 
 ### Verifiche
 
-Provato in locale: 62 test del frontend (compresi flussi dell'interfaccia: primo avvio, anagrafica,
+Provato in locale: 74 test del frontend, 256 del backend (su PostgreSQL e Redis veri), una prova
+end-to-end con due app contro il server reale e (compresi flussi dell'interfaccia: primo avvio, anagrafica,
 fattura emessa e incassata) e 41 test Rust (database cifrato, backup, ripristino, allegati), tutti
 sul motore SQLite reale; lint, tipi e `clippy -D warnings` puliti.
 
@@ -67,7 +75,7 @@ dei due lati, la compilazione di SQLCipher su Windows e macOS e le prove degli i
 controllare nella CI), le funzioni che usano finestre di dialogo del sistema (allegati, salvataggio
 CSV, backup).
 
-**Non implementato:** sincronizzazione con il server, integrazione email, XML FatturaPA e invio SDI,
+**Non implementato:** numerazione fiscale assegnata dal server, integrazione email, XML FatturaPA e invio SDI,
 PDF dei documenti, permessi per record, blocco dell'app con PIN (i dati sono cifrati a riposo, ma
 chiunque acceda all'account del sistema operativo può aprire l'app).
 

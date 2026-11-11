@@ -20,7 +20,7 @@ ha un'implementazione reale e testata.
 | **Personale e progetti** | Anagrafica, ferie/assenze senza sovrapposizioni, progetti, ore, costo del lavoro e valore fatturabile | Buste paga, presenze da timbratore |
 | **Report** | Conto economico, riepilogo IVA, bilancio di verifica, progetti, esportazione CSV | Registri IVA fiscalmente validi, liquidazione con acconti |
 | **IT** | Inventario asset, reti con controllo di sovrapposizione e appartenenza degli IP, peer WireGuard (solo chiave pubblica), account (senza password), licenze, backup (job + esecuzioni registrate), eventi di sicurezza, controlli TCP reali, risorse di questo computer, documentazione tecnica | Agenti di monitoraggio remoti, integrazione Proxmox/NAS, scansione di rete |
-| **Trasversali** | Panoramica con indicatori reali e personalizzabile, notifiche calcolate dai dati, ricerca globale, storico delle modifiche, allegati, backup e ripristino cifrati | Permessi per record; più utenti locali; sincronizzazione (vedi [SYNC_ENGINE.md](SYNC_ENGINE.md)) |
+| **Trasversali** | Panoramica con indicatori reali e personalizzabile, notifiche calcolate dai dati, ricerca globale, storico delle modifiche, allegati, backup e ripristino cifrati | Permessi per record; più utenti locali; numerazione fiscale assegnata dal server (vedi i limiti in [SYNC_ENGINE.md](SYNC_ENGINE.md)) |
 
 > **Contabilità gestionale ≠ adempimenti fiscali.** Quanto sopra produce dati gestionali. Registri
 > IVA, liquidazioni e dichiarazioni restano di competenza del commercialista.
