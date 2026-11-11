@@ -126,6 +126,21 @@ async def test_edits_to_different_fields_merge_and_everyone_downloads_the_result
         assert change["data"] == {"name": "Acme Srl", "phone": "2"} and change["version"] == 3
 
 
+async def test_updated_at_alone_never_conflicts(api: Api) -> None:
+    tokens = await _tokens(api)
+    rid = uuid7()
+    await _push(api, tokens, DEVICE_A, _op("create", "party", rid, 0, {"name": "A", "phone": "1"}))
+    await _push(
+        api, tokens, DEVICE_B, _op("update", "party", rid, 1, {"phone": "2", "updated_at": "t1"})
+    )
+    result = _first(
+        await _push(
+            api, tokens, DEVICE_A, _op("update", "party", rid, 1, {"name": "B", "updated_at": "t2"})
+        )
+    )
+    assert result["status"] == "merged"
+
+
 async def test_edits_to_the_same_field_conflict_and_show_the_server_copy(api: Api) -> None:
     tokens = await _tokens(api)
     rid = uuid7()

@@ -39,6 +39,9 @@ FINANCIAL_ENTITIES = frozenset(
     }
 )
 
+# Bookkeeping that every edit changes: two devices editing different fields still merge.
+NEVER_CONFLICTS = frozenset({"updated_at"})
+
 # Pushes are applied one at a time, so commit order equals sequence order and a puller's
 # cursor can never skip a change that commits late.
 _PUSH_LOCK = 7_342_001
@@ -181,7 +184,7 @@ async def _update(
         if op.entity in FINANCIAL_ENTITIES:
             return _conflict(op, "financial_record_changed", record)
         touched = await _fields_changed_since(session, op, op.base_version)
-        overlap = sorted(set(op.payload) & touched)
+        overlap = sorted((set(op.payload) & touched) - NEVER_CONFLICTS)
         if overlap:
             return _conflict(op, "same_fields_changed", record, overlap)
         merged = True

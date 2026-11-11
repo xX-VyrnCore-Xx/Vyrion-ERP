@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 
 import { AppContext, useAsync, useWorkspace } from "./app/context";
+import { SyncProvider } from "./app/sync";
 import { boot, type Booted } from "./app/boot";
 import { useRoute } from "./app/router";
 import type { Workspace } from "./data/workspace";
@@ -73,7 +74,9 @@ export function App({ preloaded }: { preloaded?: Workspace }) {
   }
   return (
     <AppContext.Provider value={{ ws: booted.ws, volatile: booted.volatile }}>
-      <Shell volatile={booted.volatile} />
+      <SyncProvider ws={booted.ws}>
+        <Shell volatile={booted.volatile} />
+      </SyncProvider>
     </AppContext.Provider>
   );
 }

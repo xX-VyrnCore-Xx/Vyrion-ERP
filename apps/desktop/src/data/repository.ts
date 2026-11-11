@@ -237,6 +237,8 @@ export class EntityRepository {
       };
       fields[field.name] = record[field.name];
     }
+    // The server never treats updated_at as a conflict: it only follows the latest edit.
+    fields["updated_at"] = record.updated_at;
     await writeAudit(tx, ctx, {
       action: "update",
       entity: this.def.key,

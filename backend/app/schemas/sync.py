@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 ENTITY = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 FIELD = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 # Columns every record has; they belong to the sync protocol, not to the payload.
-RESERVED_FIELDS = frozenset({"id", "version", "created_at", "deleted_at"})
+RESERVED_FIELDS = frozenset({"id", "version", "deleted_at"})
 MAX_OPERATIONS = 200
 MAX_RECORD_FIELDS = 200
 

@@ -183,7 +183,7 @@ Corpo: `{ "device_id": uuid, "operations": [ … ] }` (da 1 a 200 operazioni). O
 | `kind` | `create` (parte da `base_version` 0), `update` (solo i campi cambiati) o `delete` |
 | `base_version` | Versione del record su cui il client ha lavorato |
 | `version` | Solo per `create`: versione già posseduta (prima connessione) |
-| `payload` | Campi del record; `id`, `version`, `created_at`, `deleted_at` sono riservati |
+| `payload` | Campi del record; `id`, `version`, `deleted_at` sono riservati; `updated_at` non genera mai conflitti |
 
 Risposta: un esito per operazione, indipendente dalle altre:
 
