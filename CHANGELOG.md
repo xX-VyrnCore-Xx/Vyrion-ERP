@@ -7,6 +7,12 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ### Fixed
 
+- **Windows: «Esci definitivamente» ora chiude tutto.** L'uscita dalla tray chiude icona e
+  finestre e termina l'intero albero di processi (compresi quelli di WebView2 che restavano nel
+  Gestore attività).
+- **Windows: installazione, aggiornamento e disinstallazione** chiudono prima l'app in background
+  (anche se è nella tray), così i file non risultano «in uso» e non restano processi orfani;
+  la disinstallazione rimuove anche la cartella dei dati locali del programma.
 - **macOS: «il file è danneggiato».** L'app nel DMG aveva solo la firma «ad hoc» del binario e
   non una firma valida del pacchetto (`code has no resources but signature indicates they must be
   present`), che macOS segnala come file danneggiato. Ora il pacchetto è firmato in modo valido

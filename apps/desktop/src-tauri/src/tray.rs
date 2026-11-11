@@ -29,7 +29,29 @@ pub fn show_main_window(app: &AppHandle) {
 /// everything in the main file and nothing waits in the write-ahead log.
 pub fn quit(app: &AppHandle) {
     flush_database(app);
+    // Close the tray icon and every window so nothing keeps the process alive.
+    let _ = app.remove_tray_by_id("main");
+    for (_, window) in app.webview_windows() {
+        let _ = window.destroy();
+    }
+    terminate_process_tree();
+    // Fallback (other systems, or if the helper could not run).
     app.exit(0);
+    std::process::exit(0);
+}
+
+/// Windows: ends this process together with every child (the WebView2 helper processes
+/// can outlive a plain exit and show up in the task manager). Returns only if it failed.
+fn terminate_process_tree() {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        let _ = std::process::Command::new("taskkill")
+            .args(["/F", "/T", "/PID", &std::process::id().to_string()])
+            .creation_flags(CREATE_NO_WINDOW)
+            .status();
+    }
 }
 
 pub fn flush_database(app: &AppHandle) {

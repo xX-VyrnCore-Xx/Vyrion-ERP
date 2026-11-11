@@ -58,6 +58,7 @@
         "languages": ["Italian", "English"],
         "compression": "lzma",
         "installerIcon": "icons/icon.ico",
+        "installerHooks": "installer/hooks.nsh",
         "headerImage": "installer/header.bmp",
         "sidebarImage": "installer/sidebar.bmp",
         "startMenuFolder": "VyrnCore",
