@@ -19,8 +19,10 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 - **Installer Windows:** a fine installazione chiede se avviare Vyrion ERP con Windows (resta nella
   tray); la disinstallazione toglie la voce di avvio e, se scegli di eliminare i dati, anche la
   chiave di cifratura salvata in Gestione credenziali.
-- **DMG macOS:** lo sfondo ora mostra i tre passaggi (trascina, apri con tasto destro se bloccata,
-  disinstalla trascinando nel Cestino).
+- **DMG macOS ridisegnato:** titolo, due piastre dietro le icone (restano leggibili con il tema
+  chiaro e scuro), freccia «trascina» e un riquadro con i tre passaggi. Se macOS dice «danneggiata»
+  (l'app è firmata ma non notarizzata da Apple, e il browser aggiunge la quarantena al download)
+  il comando da incollare nel Terminale è scritto nella finestra.
 
 ### Fixed
 
