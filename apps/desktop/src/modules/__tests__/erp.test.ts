@@ -294,7 +294,7 @@ describe("inventory", () => {
     );
     expect(stock?.q).toBe(3);
     await expect(
-      ws.remove("stock_movement", (await ws.list("stock_movement")).rows[0]!.id),
+      ws.remove("stock_movement", ((await ws.list("stock_movement")).rows[0] as { id: string }).id),
     ).rejects.toThrow();
   });
 });
@@ -314,11 +314,11 @@ describe("crm rules", () => {
   it("stamps the closing date of won opportunities", async () => {
     const { ws, customer } = await setup();
     const stages = (await ws.list("pipeline_stage", { orderBy: "position asc" })).rows;
-    const won = stages.find((s) => s["kind"] === "won")!;
+    const won = stages.find((s) => s["kind"] === "won") as { id: string };
     const o = await ws.create("opportunity", {
       title: "Rinnovo",
       party_id: customer.id,
-      stage_id: stages[0]!.id,
+      stage_id: (stages[0] as { id: string }).id,
       amount: 100000,
     });
     expect(o["closed_at"]).toBeNull();
