@@ -73,6 +73,14 @@ CATALOG: tuple[PermissionDef, ...] = (
             Action.EXPORT: "Export the audit log",
         },
     ),
+    *_resource(
+        "core",
+        "sync",
+        {
+            Action.VIEW: "Download changes made on other devices",
+            Action.UPDATE: "Send this device's changes to the server",
+        },
+    ),
 )
 
 CATALOG_KEYS: frozenset[str] = frozenset(permission.key for permission in CATALOG)
@@ -105,13 +113,21 @@ SYSTEM_ROLES: tuple[SystemRoleDef, ...] = (
         "manager",
         "Responsabile",
         "Consultazione di utenti e dati aziendali.",
-        frozenset({"core.company:view", "core.users:view", "core.roles:view"}),
+        frozenset(
+            {
+                "core.company:view",
+                "core.users:view",
+                "core.roles:view",
+                "core.sync:view",
+                "core.sync:update",
+            }
+        ),
     ),
     SystemRoleDef(
         "employee",
         "Dipendente",
         "Accesso operativo di base.",
-        frozenset({"core.company:view"}),
+        frozenset({"core.company:view", "core.sync:view", "core.sync:update"}),
     ),
     SystemRoleDef(
         "collaborator",

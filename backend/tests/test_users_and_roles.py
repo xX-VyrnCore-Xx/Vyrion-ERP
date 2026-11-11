@@ -310,6 +310,8 @@ async def test_user_roles_and_effective_permissions(db_session: AsyncSession) ->
         "core.company:view",
         "core.users:view",
         "core.roles:view",
+        "core.sync:view",
+        "core.sync:update",
     }
 
     with pytest.raises(InvalidInputError) as error:

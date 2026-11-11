@@ -166,3 +166,44 @@ Gli errori di validazione elencano campo, messaggio e tipo, **mai il valore rice
 
 Origini ammesse: `tauri://localhost`, `http(s)://tauri.localhost` e, in sviluppo,
 `http://localhost:1420`. Configurabili con `VYRION_CORS_ORIGINS` (lista JSON).
+
+## Sincronizzazione (`/api/v1/sync`)
+
+Usata dall'app desktop **dopo** il collegamento al server. Permessi: `core.sync:update` (invio) e
+`core.sync:view` (ricezione); li hanno Amministratore, Responsabile e Dipendente.
+
+### `POST /sync/push`
+
+Corpo: `{ "device_id": uuid, "operations": [ … ] }` (da 1 a 200 operazioni). Ogni operazione:
+
+| Campo | Significato |
+| --- | --- |
+| `op_id` | UUID scelto dal client: chiave di idempotenza |
+| `entity`, `entity_id` | Tipo e identificativo del record (nome in minuscolo con `_`) |
+| `kind` | `create` (parte da `base_version` 0), `update` (solo i campi cambiati) o `delete` |
+| `base_version` | Versione del record su cui il client ha lavorato |
+| `version` | Solo per `create`: versione già posseduta (prima connessione) |
+| `payload` | Campi del record; `id`, `version`, `created_at`, `deleted_at` sono riservati |
+
+Risposta: un esito per operazione, indipendente dalle altre:
+
+| `status` | Significato |
+| --- | --- |
+| `applied` | Applicata; `version` è la nuova versione del record |
+| `merged` | Versione base più vecchia, ma i campi toccati non si sovrappongono a quelli cambiati nel frattempo: unita automaticamente |
+| `duplicate` | Stesso `op_id` già applicato: restituisce l'esito originale |
+| `conflict` | Non applicata. `reason` (`same_fields_changed`, `financial_record_changed`, `changed_since`, `deleted`, `missing`, `already_exists`), `conflicting_fields` e la copia attuale del server in `server` |
+| `rejected` | Operazione incoerente (versione mai vista dal server, `op_id` riusato per un altro record) |
+
+I record **finanziari** (`document`, `document_line`, `payment`, `journal_entry`, `journal_line`,
+`stock_movement`) non si uniscono mai in automatico: ogni differenza di versione è un conflitto.
+Un record non si elimina mai sopra modifiche che chi elimina non ha visto.
+
+### `GET /sync/pull?device_id=…&after=…&limit=…`
+
+Record modificati da altri dispositivi (o risultato di un'unione) dopo il cursore `after`, ciascuno
+nel suo stato più recente, dal più vecchio. La risposta contiene `cursor` da riusare come `after` e
+`has_more`. Il dispositivo che ha fatto la modifica non la riceve di ritorno, ma il cursore avanza.
+
+Le richieste di invio sono serializzate (blocco consultivo PostgreSQL): l'ordine di commit coincide
+con l'ordine di sequenza e un cursore non può saltare una modifica registrata in ritardo.

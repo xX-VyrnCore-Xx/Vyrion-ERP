@@ -38,7 +38,11 @@ async def test_login_returns_tokens_and_a_working_session(api: Api) -> None:
     me = await api.client.get(f"{BASE}/auth/me", headers=bearer(tokens))
     assert me.status_code == 200
     assert me.json()["user"]["email"] == "ada@example.com"
-    assert me.json()["permissions"] == ["core.company:view"]
+    assert me.json()["permissions"] == [
+        "core.company:view",
+        "core.sync:update",
+        "core.sync:view",
+    ]
     assert me.json()["mfa_verified"] is False
     # Credentials never travel back to the client.
     for forbidden in ("password_hash", "argon2", "totp_secret"):

@@ -37,6 +37,25 @@ ROUTES: list[tuple[str, str, dict[str, Any] | None, str]] = [
     ("GET", "/company", None, "core.company:view"),
     ("PUT", "/company", COMPANY, "core.company:update"),
     ("GET", "/audit-log", None, "core.audit_log:view"),
+    ("GET", "/sync/pull?device_id=018f0000-0000-7000-8000-000000000001", None, "core.sync:view"),
+    (
+        "POST",
+        "/sync/push",
+        {
+            "device_id": "018f0000-0000-7000-8000-000000000001",
+            "operations": [
+                {
+                    "op_id": "018f0000-0000-7000-8000-0000000000a1",
+                    "entity": "party",
+                    "entity_id": "018f0000-0000-7000-8000-0000000000b1",
+                    "kind": "create",
+                    "base_version": 0,
+                    "payload": {"name": "X"},
+                }
+            ],
+        },
+        "core.sync:update",
+    ),
 ]
 
 
@@ -161,7 +180,12 @@ async def test_you_cannot_grant_permissions_you_do_not_hold_through_a_role(api: 
     response = await put_roles(api, hr, "target@example.com", ["manager"])  # manager includes those
     assert response.status_code == 403
     missing = response.json()["error"]["details"]["permissions"]
-    assert set(missing) == {"core.company:view", "core.roles:view"}
+    assert set(missing) == {
+        "core.company:view",
+        "core.roles:view",
+        "core.sync:update",
+        "core.sync:view",
+    }
 
     ok = await put_roles(api, hr, "target@example.com", ["collaborator"])  # grants nothing
     assert ok.status_code == 200
