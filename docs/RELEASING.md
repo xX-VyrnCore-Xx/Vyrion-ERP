@@ -4,7 +4,8 @@ Un rilascio nasce da un **tag** su `main`. Il tag avvia la build degli installer
 release su GitHub e poi elimina le release più vecchie: ne restano **le ultime 3**.
 
 > **Stato:** la pipeline è scritta e le sue parti verificabili in locale sono provate (logica di
-> versionamento e di potatura, lint dei workflow).
+> versionamento e di potatura, lint dei workflow, compilazione di release del guscio Rust su
+> Linux).
 > **Non è ancora stata eseguita su GitHub Actions** né su runner Windows e macOS: la prima
 > esecuzione reale è il primo tag. Gli installer escono **non firmati** finché non si configurano
 > i segreti descritti più sotto.
@@ -145,8 +146,10 @@ In locale, sul codice di questa pipeline:
 - Prova di mutazione: introducendo apposta 4 errori nella logica di potatura, i test li rilevano
   tutti.
 - `actionlint` sui workflow e `shellcheck` sullo script.
+- `tauri build --no-bundle` su Linux: build del frontend e compilazione di release del guscio Rust
+  (profilo con LTO, 2 min 42 s) riuscite. Non copre la creazione degli installer NSIS e DMG.
 
-Non verificato: l'esecuzione su GitHub Actions, le build su Windows e macOS, la build di release
-del guscio Rust (`tauri build`, anche su Linux), i permessi reali del
+Non verificato: l'esecuzione su GitHub Actions, le build su Windows e macOS, la creazione degli
+installer (NSIS e DMG), i permessi reali del
 token (`contents: write`) e il comportamento di `gh release delete --cleanup-tag` sul repository
 vero.
