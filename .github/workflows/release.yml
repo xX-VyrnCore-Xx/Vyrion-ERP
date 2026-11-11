@@ -3,8 +3,17 @@ name: Release
 # Pushing a tag vX.Y.Z or vX.Y.Z-(alpha|beta|rc).N builds the desktop installers for
 # Windows and macOS (Apple Silicon), publishes a GitHub release and then prunes releases
 # older than the newest three. See docs/RELEASING.md.
+#
+# The same release can be started by hand (Actions -> Release -> Run workflow) with the
+# version number: the workflow then creates the tag itself on the tip of main.
 
 on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, e.g. 0.1.0-alpha.1 (must match the version files on main)"
+        required: true
+        type: string
   push:
     tags:
       - "v[0-9]+.[0-9]+.[0-9]+"
@@ -16,35 +25,74 @@ permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ github.ref }}-${{ inputs.version }}
   cancel-in-progress: false
 
 jobs:
   verify:
-    name: Verify tag
+    name: Verify version
     runs-on: ubuntu-24.04
     outputs:
+      tag: ${{ steps.meta.outputs.tag }}
       version: ${{ steps.meta.outputs.version }}
       prerelease: ${{ steps.meta.outputs.prerelease }}
+      title: ${{ steps.meta.outputs.title }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Tag format and version files
         id: meta
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
-          tag="${GITHUB_REF_NAME}"
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+              echo "::error::start the release from the main branch"
+              exit 1
+            fi
+            tag="v${INPUT_VERSION#v}"
+          else
+            tag="${GITHUB_REF_NAME}"
+          fi
           python3 tools/release/version.py check --tag "$tag"
-          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+          version="${tag#v}"
           if [[ "$tag" == *-* ]]; then pre=true; else pre=false; fi
-          echo "prerelease=$pre" >> "$GITHUB_OUTPUT"
-      - name: The tag must point at a commit on main
+          # "0.1.0-alpha.1" -> "Vyrion ERP 0.1.0 Alpha 1"
+          title="$(python3 - "$version" <<'PY'
+          import re, sys
+          v = sys.argv[1]
+          m = re.fullmatch(r"(\d+\.\d+\.\d+)(?:-(alpha|beta|rc)\.(\d+))?", v)
+          if not m:
+              raise SystemExit("unexpected version " + v)
+          core, channel, n = m.groups()
+          names = {"alpha": "Alpha", "beta": "Beta", "rc": "Release Candidate"}
+          print(f"Vyrion ERP {core}" + (f" {names[channel]} {n}" if channel else ""))
+          PY
+          )"
+          {
+            echo "tag=$tag"
+            echo "version=$version"
+            echo "prerelease=$pre"
+            echo "title=$title"
+          } >> "$GITHUB_OUTPUT"
+      - name: A pushed tag must point at a commit on main
+        if: github.event_name == 'push'
         run: |
           set -euo pipefail
           git fetch --quiet origin main
           if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
             echo "::error::$GITHUB_REF_NAME is not on main; releases are cut from main only."
+            exit 1
+          fi
+      - name: The tag must not exist yet (manual start)
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          TAG: ${{ steps.meta.outputs.tag }}
+        run: |
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "::error::tag $TAG already exists; use a new version number"
             exit 1
           fi
       - name: Release tooling tests
@@ -67,9 +115,10 @@ jobs:
       contents: write
     env:
       GH_TOKEN: ${{ github.token }}
-      TAG: ${{ github.ref_name }}
+      TAG: ${{ needs.verify.outputs.tag }}
       VERSION: ${{ needs.verify.outputs.version }}
       PRERELEASE: ${{ needs.verify.outputs.prerelease }}
+      TITLE: ${{ needs.verify.outputs.title }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v4
@@ -91,18 +140,25 @@ jobs:
         run: |
           set -euo pipefail
           {
+            echo "# $TITLE"
+            echo
+            if [ "$PRERELEASE" = "true" ]; then
+              echo "> **Versione di anteprima.** Pensata per prove e valutazioni, non per la produzione."
+              echo
+            fi
             python3 tools/release/version.py notes "$VERSION"
             echo
-            echo "## Installazione"
+            echo "## Scarica"
             echo
-            echo "- **Windows:** \`vyrion-erp_${VERSION}_windows-x64.exe\`"
-            echo "- **macOS (Apple Silicon):** \`vyrion-erp_${VERSION}_macos-arm64.dmg\`"
+            echo "| Sistema | File |"
+            echo "| --- | --- |"
+            echo "| Windows 10/11 (64 bit) | \`Vyrion-ERP_${VERSION}_Windows-x64-Setup.exe\` |"
+            echo "| macOS 12 o successivo (Apple Silicon) | \`Vyrion-ERP_${VERSION}_macOS-AppleSilicon.dmg\` |"
             echo
-            echo "Verifica l'integrità del file scaricato con \`SHA256SUMS.txt\`."
-            if [ "$PRERELEASE" = "true" ]; then
-              echo
-              echo "> Versione di anteprima (\`$VERSION\`): non destinata alla produzione."
-            fi
+            echo "- **Windows:** doppio clic sul file; l'installazione è per utente e non richiede l'amministratore."
+            echo "- **macOS:** apri il file, trascina Vyrion ERP in Applicazioni. Se l'app non è firmata, al primo avvio usa clic destro → Apri."
+            echo "- Verifica l'integrità del download con \`SHA256SUMS.txt\`."
+            echo "- L'app funziona subito, offline, senza server."
           } > notes.md
       - name: Create or update the release
         run: |
@@ -111,18 +167,18 @@ jobs:
             # Re-run of a previous attempt: replace the assets, keep the release.
             gh release upload "$TAG" assets/* --clobber
           else
-            flags=(--verify-tag --title "Vyrion ERP $VERSION" --notes-file notes.md --generate-notes)
+            flags=(--title "$TITLE" --notes-file notes.md --target "$GITHUB_SHA")
             if [ "$PRERELEASE" = "true" ]; then flags+=(--prerelease); else flags+=(--latest); fi
             gh release create "$TAG" "${flags[@]}" assets/*
           fi
 
   prune:
     name: Prune old releases
-    needs: release
+    needs: [verify, release]
     permissions:
       contents: write
     uses: ./.github/workflows/prune-releases.yml
     with:
       keep: 3
       dry_run: false
-      current_tag: ${{ github.ref_name }}
+      current_tag: ${{ needs.verify.outputs.tag }}

@@ -47,14 +47,18 @@ jobs:
         include:
           - name: Windows x64
             slug: windows-x64
+            asset: Windows-x64-Setup
             os: windows-latest
             target: x86_64-pc-windows-msvc
             bundles: nsis
+            perl: C:/Strawberry/perl/bin/perl.exe
           - name: macOS Apple Silicon
             slug: macos-arm64
+            asset: macOS-AppleSilicon
             os: macos-latest
             target: aarch64-apple-darwin
             bundles: dmg
+            perl: ""
     defaults:
       run:
         shell: bash
@@ -67,7 +71,7 @@ jobs:
       VITE_APP_COMMIT: ${{ github.sha }}
       # SQLCipher is built against a vendored OpenSSL, which needs a complete Perl. The Perl
       # that ships with Git for Windows lacks modules, so use Strawberry Perl on the runner.
-      OPENSSL_SRC_PERL: ${{ runner.os == 'Windows' && 'C:/Strawberry/perl/bin/perl.exe' || '' }}
+      OPENSSL_SRC_PERL: ${{ matrix.perl }}
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -145,7 +149,7 @@ jobs:
             ls -la "$bundle_dir" || true
             exit 1
           fi
-          out="../../dist-release/vyrion-erp_${VERSION}_${{ matrix.slug }}.${ext}"
+          out="../../dist-release/Vyrion-ERP_${VERSION}_${{ matrix.asset }}.${ext}"
           cp "${files[0]}" "$out"
           size=$(wc -c < "$out")
           echo "installer: $out ($size bytes)"

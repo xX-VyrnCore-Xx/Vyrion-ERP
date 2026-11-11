@@ -5,8 +5,16 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ## [Unreleased]
 
-Milestone 4 (autenticazione e autorizzazioni), miglioramenti alle build e **app desktop
-offline-first con i moduli CRM, ERP e IT**.
+## [0.1.0-alpha.1] - 2026-11-11
+
+Primo rilascio pubblico: **Vyrion ERP funziona da solo, offline, con i dati cifrati sul computer**,
+con una prima implementazione reale dei moduli CRM, ERP e IT. Il collegamento a un server
+aziendale è facoltativo e successivo.
+
+**Anteprima tecnica (alpha).** La sincronizzazione con il server, l'integrazione email, la
+fatturazione elettronica (XML FatturaPA, SDI) e i PDF dei documenti non sono ancora disponibili.
+Gli installer non sono firmati: Windows mostrerà l'avviso «editore sconosciuto» e macOS richiede
+clic destro → Apri al primo avvio.
 
 ### Added
 
@@ -75,15 +83,7 @@ chiunque acceda all'account del sistema operativo può aprire l'app).
   così limiti e audit vedono l'indirizzo reale del client.
 - La politica delle password rifiuta qualsiasi password che contenga l'indirizzo email intero.
 
-## [0.1.0-alpha.1] - 2026-11-11
-
-Primo rilascio: fondamenta del progetto (milestone 1, 2 e 3) e pipeline di rilascio.
-
-**Anteprima tecnica.** Contiene l'infrastruttura, il guscio dell'applicazione desktop e il modello
-dati di base. **I moduli ERP, CRM e IT, l'autenticazione e la sincronizzazione offline non sono
-ancora implementati.** Gli installer non sono firmati.
-
-### Added
+### Fondamenta (milestone 1-3)
 
 - Struttura monorepo: `apps/desktop`, `backend`, `infra`, `docs`, `tools`.
 - Backend FastAPI (Python 3.15) con configurazione da variabili d'ambiente e nessun segreto

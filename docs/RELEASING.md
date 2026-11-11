@@ -40,6 +40,16 @@ python3 tools/release/version.py check
 
 ## Come si pubblica
 
+Ci sono due modi equivalenti. In entrambi la release prende il titolo dal numero di versione
+(`0.1.0-alpha.1` → **Vyrion ERP 0.1.0 Alpha 1**) e i file hanno nomi leggibili.
+
+**A. Dall'interfaccia di GitHub (consigliato):** *Actions → Release → Run workflow* sul ramo
+`main`, scrivendo la versione (per esempio `0.1.0-alpha.1`). Il workflow controlla che i file di
+versione coincidano, rifiuta una versione già pubblicata, costruisce gli installer e **crea da solo
+il tag** sulla punta di `main`.
+
+**B. Da terminale:** crea e invia il tag, come descritto sotto.
+
 1. Aggiorna `CHANGELOG.md`: sposta il contenuto di `[Unreleased]` in una sezione
    `## [0.2.0-alpha.1] - AAAA-MM-GG`. Il testo di quella sezione diventa la parte iniziale delle
    note di rilascio, seguita dalle note generate da GitHub.
@@ -66,8 +76,8 @@ Installer prodotti:
 
 | Piattaforma | File | Formato |
 | --- | --- | --- |
-| Windows 10/11 x64 | `vyrion-erp_<versione>_windows-x64.exe` | NSIS |
-| macOS Apple Silicon | `vyrion-erp_<versione>_macos-arm64.dmg` | DMG |
+| Windows 10/11 x64 | `Vyrion-ERP_<versione>_Windows-x64-Setup.exe` | NSIS |
+| macOS Apple Silicon | `Vyrion-ERP_<versione>_macOS-AppleSilicon.dmg` | DMG |
 
 **Non esiste una build per macOS Intel**, per scelta.
 
@@ -88,6 +98,20 @@ del rilascio. Ogni build:
   e che il binario sia `arm64`, e riporta lo stato della firma;
 - scrive un checksum SHA-256 accanto a ogni installer; la release li riunisce e li **riverifica**
   dopo il download.
+
+### Procedura guidata di installazione
+
+- **Windows (NSIS):** schermata di benvenuto con grafica del marchio, pagina con le condizioni
+  d'uso (`apps/desktop/src-tauri/installer/LICENSE.txt`, **testo provvisorio da far rivedere a un
+  legale**), scelta della cartella, cartella nel menu Start «VyrnCore» e, a fine installazione, la
+  casella per avviare subito l'app. La disinstallazione offre di eliminare anche i dati (non
+  selezionato di default). Lingua italiana.
+- **macOS (DMG):** finestra con sfondo e freccia «trascina in Applicazioni».
+- La grafica si rigenera con `python3 tools/installer-assets/generate.py` (i file sono nel
+  repository: le build non richiedono Pillow).
+- Il programma di installazione Windows non è stato guardato su una finestra reale: la CI lo
+  installa e lo disinstalla in modo silenzioso, ma le pagine grafiche del wizard non sono verificate
+  da prove automatiche.
 
 Gli installer sono configurati per un'app che lavora offline:
 
