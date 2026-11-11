@@ -7,7 +7,7 @@ facoltativo e si attiva in un secondo momento.
 
 > **Stato: alpha.** L'app desktop contiene una prima implementazione reale dei moduli CRM, ERP e IT
 > (vedi [docs/MODULES.md](docs/MODULES.md) per cosa c'è e cosa manca). La sincronizzazione con il
-> server **non è ancora implementata**. L'interfaccia nativa non è ancora stata provata su una
+> server è facoltativa e disponibile (con i limiti in [docs/SYNC_ENGINE.md](docs/SYNC_ENGINE.md)). L'interfaccia nativa non è ancora stata provata su una
 > finestra Windows/macOS reale: vedi *Verifiche* nel [CHANGELOG](CHANGELOG.md).
 
 ## Cosa funziona oggi

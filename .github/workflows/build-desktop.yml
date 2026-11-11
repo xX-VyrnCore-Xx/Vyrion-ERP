@@ -47,11 +47,13 @@ jobs:
         include:
           - name: Windows x64
             slug: windows-x64
+            asset: Windows-x64-Setup
             os: windows-latest
             target: x86_64-pc-windows-msvc
             bundles: nsis
           - name: macOS Apple Silicon
             slug: macos-arm64
+            asset: macOS-AppleSilicon
             os: macos-latest
             target: aarch64-apple-darwin
             bundles: dmg
@@ -65,9 +67,6 @@ jobs:
       CARGO_TERM_COLOR: always
       # Shown in the app's About panel.
       VITE_APP_COMMIT: ${{ github.sha }}
-      # SQLCipher is built against a vendored OpenSSL, which needs a complete Perl. The Perl
-      # that ships with Git for Windows lacks modules, so use Strawberry Perl on the runner.
-      OPENSSL_SRC_PERL: ${{ runner.os == 'Windows' && 'C:/Strawberry/perl/bin/perl.exe' || '' }}
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -85,6 +84,12 @@ jobs:
         with:
           workspaces: apps/desktop/src-tauri
           key: ${{ matrix.target }}
+      # SQLCipher is built against a vendored OpenSSL, which needs a complete Perl. The Perl
+      # that ships with Git for Windows lacks modules, so Windows uses Strawberry Perl. Set on
+      # Windows only: an empty value on macOS would be taken as a command named "".
+      - name: Use Strawberry Perl for OpenSSL
+        if: runner.os == 'Windows'
+        run: echo "OPENSSL_SRC_PERL=C:/Strawberry/perl/bin/perl.exe" >> "$GITHUB_ENV"
       - name: Toolchain versions
         run: |
           node --version
@@ -145,7 +150,7 @@ jobs:
             ls -la "$bundle_dir" || true
             exit 1
           fi
-          out="../../dist-release/vyrion-erp_${VERSION}_${{ matrix.slug }}.${ext}"
+          out="../../dist-release/Vyrion-ERP_${VERSION}_${{ matrix.asset }}.${ext}"
           cp "${files[0]}" "$out"
           size=$(wc -c < "$out")
           echo "installer: $out ($size bytes)"
@@ -187,7 +192,9 @@ jobs:
           dmg="$(find dist-release -maxdepth 1 -name '*.dmg' -print -quit)"
           hdiutil verify "$dmg"
           mount_point="$(mktemp -d)"
-          hdiutil attach -nobrowse -readonly -mountpoint "$mount_point" "$dmg" >/dev/null
+          # The image carries the terms of use, which hdiutil asks to accept; answer "Y" for it.
+          echo Y | hdiutil attach -nobrowse -readonly -mountpoint "$mount_point" "$dmg" >/dev/null \
+            || { echo "::error::cannot mount the disk image"; exit 1; }
           trap 'hdiutil detach "$mount_point" >/dev/null || true' EXIT
           app="$(find "$mount_point" -maxdepth 1 -name '*.app' -print -quit)"
           test -n "$app" || { echo "::error::no .app bundle inside the disk image"; exit 1; }

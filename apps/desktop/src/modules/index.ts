@@ -37,5 +37,30 @@ export function businessMigrations(registry: Registry): Migration[] {
         ...registry.entities.flatMap((def) => createTableSql(def, registry.tableOf)),
       ],
     },
+    {
+      id: 3,
+      name: "sync-conflicts",
+      statements: [
+        // pending | sent | conflict | blocked (waits behind a conflict on the same record)
+        // | discarded (dropped when the server's version was chosen)
+        `ALTER TABLE sync_outbox ADD COLUMN status TEXT NOT NULL DEFAULT 'pending'
+           CHECK (status IN ('pending', 'sent', 'conflict', 'blocked', 'discarded'))`,
+        `CREATE INDEX ix_outbox_record ON sync_outbox(entity_id, status)`,
+        `CREATE TABLE sync_conflicts (
+           id INTEGER PRIMARY KEY AUTOINCREMENT,
+           op_id TEXT NOT NULL,
+           entity TEXT NOT NULL,
+           entity_id TEXT NOT NULL,
+           reason TEXT NOT NULL,
+           fields TEXT NOT NULL,
+           server TEXT,
+           local TEXT NOT NULL,
+           created_at TEXT NOT NULL,
+           resolved_at TEXT,
+           resolution TEXT
+         )`,
+        `CREATE INDEX ix_conflicts_open ON sync_conflicts(resolved_at)`,
+      ],
+    },
   ];
 }

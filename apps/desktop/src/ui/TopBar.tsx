@@ -3,6 +3,7 @@ import { useState } from "react";
 
 import { useAsync, useWorkspace } from "../app/context";
 import { href } from "../app/router";
+import { useSync } from "../app/sync";
 import { globalSearch, notifications } from "../modules/insights";
 
 export function TopBar({ go }: { go: (to: string) => void }) {
@@ -11,6 +12,7 @@ export function TopBar({ go }: { go: (to: string) => void }) {
   const hits = useAsync(() => globalSearch(ws.db, ws.registry, term), [term]);
   const alerts = useAsync(() => notifications(ws.db, ws.ctx.today(), ws.ctx.now()), []);
   const count = alerts.data?.length ?? 0;
+  const sync = useSync();
   return (
     <div className="relative flex items-center gap-3 border-b border-line bg-surface px-8 py-3">
       <div className="relative w-full max-w-md">
@@ -46,11 +48,27 @@ export function TopBar({ go }: { go: (to: string) => void }) {
           </div>
         ) : null}
       </div>
+      {sync.connected ? (
+        <a
+          href="#/settings"
+          className={`ml-auto rounded-lg border px-3 py-1.5 text-xs ${sync.conflicts.length ? "border-danger/50 text-danger" : "border-line text-muted"}`}
+        >
+          {sync.conflicts.length
+            ? `${sync.conflicts.length} conflitti da risolvere`
+            : sync.syncing
+              ? "Sincronizzazione…"
+              : sync.error
+                ? "Offline: modifiche in attesa"
+                : sync.pending
+                  ? `${sync.pending} in attesa di invio`
+                  : "Sincronizzato"}
+        </a>
+      ) : null}
       <button
         type="button"
         onClick={() => go("")}
         aria-label={count ? `${count} avvisi da controllare` : "Nessun avviso"}
-        className="relative ml-auto rounded-lg border border-line bg-raised p-2 text-muted hover:text-fg"
+        className={`relative ${sync.connected ? "" : "ml-auto"} rounded-lg border border-line bg-raised p-2 text-muted hover:text-fg`}
       >
         <Bell aria-hidden="true" className="size-4" />
         {count ? (

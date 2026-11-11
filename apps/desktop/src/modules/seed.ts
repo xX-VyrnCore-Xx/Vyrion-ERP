@@ -1,5 +1,6 @@
 import type { Workspace } from "../data/workspace";
 import { getSetting, setSetting } from "../data/system";
+import { namedId } from "../lib/ids";
 import { DEFAULT_ACCOUNTS } from "./accounting";
 
 const DEFAULT_STAGES = [
@@ -15,8 +16,18 @@ const DEFAULT_STAGES = [
 export async function seedDefaults(ws: Workspace): Promise<void> {
   if (await getSetting<boolean>(ws.db, "seed.done")) return;
   await ws.transact(async (tx, ctx, repo) => {
-    for (const account of DEFAULT_ACCOUNTS) await repo("account").create(tx, ctx, account);
-    for (const stage of DEFAULT_STAGES) await repo("pipeline_stage").create(tx, ctx, stage);
+    for (const account of DEFAULT_ACCOUNTS) {
+      await repo("account").create(tx, ctx, {
+        id: await namedId(`account:${account.code}`),
+        ...account,
+      });
+    }
+    for (const stage of DEFAULT_STAGES) {
+      await repo("pipeline_stage").create(tx, ctx, {
+        id: await namedId(`stage:${stage.name}`),
+        ...stage,
+      });
+    }
     await setSetting(tx, "seed.done", true, ctx.now());
   });
 }

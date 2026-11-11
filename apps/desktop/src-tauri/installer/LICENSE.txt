@@ -1,0 +1,29 @@
+VYRION ERP - CONDIZIONI DI UTILIZZO
+
+Vyrion ERP e' un software proprietario di VyrnCore Enterprises ("VyrnCore"). Installandolo
+accetti queste condizioni.
+
+1. Licenza. VyrnCore ti concede una licenza non esclusiva e non trasferibile per usare Vyrion ERP
+   all'interno della tua organizzazione. Il software non e' venduto: resta di VyrnCore.
+
+2. Divieti. Non puoi copiare, modificare, decompilare, rivendere o distribuire il software, ne'
+   rimuovere gli avvisi di proprieta'.
+
+3. I tuoi dati. I dati che inserisci restano sul tuo computer, in un archivio cifrato. VyrnCore
+   non li riceve. Se colleghi l'app a un server aziendale, i dati vengono inviati a quel server,
+   che e' gestito dalla tua organizzazione.
+
+4. Backup. Sei responsabile di conservare copie di sicurezza e la password dei backup: senza la
+   password un backup cifrato non si puo' ripristinare.
+
+5. Adempimenti fiscali. Vyrion ERP produce dati gestionali. Non sostituisce il commercialista ne'
+   i registri o le dichiarazioni previsti dalla legge: verifica sempre con un professionista prima
+   di usare i dati a fini fiscali.
+
+6. Nessuna garanzia. Questa e' una versione in fase di sviluppo (alpha/beta). Il software e'
+   fornito "cosi' com'e'", senza garanzie di alcun tipo, nei limiti consentiti dalla legge.
+
+7. Responsabilita'. Nei limiti consentiti dalla legge, VyrnCore non risponde di perdite di dati,
+   mancati guadagni o danni indiretti derivanti dall'uso del software.
+
+Testo provvisorio: prima della distribuzione a terzi va rivisto da un legale.

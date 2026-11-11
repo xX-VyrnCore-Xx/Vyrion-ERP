@@ -1,17 +1,14 @@
 # Motore di sincronizzazione
 
-> **Stato.** Il lato client è predisposto: ogni modifica ha identificativo UUID v7, versione e
-> `base_version`, e — **quando il collegamento al server è attivo** — viene scritta nella tabella
-> `sync_outbox` nella stessa transazione. **Non sono ancora implementati**: le API di
-> sincronizzazione del server, il client che invia e riceve, l'adozione iniziale dei dati
-> esistenti e la gestione dei conflitti. Fino ad allora il collegamento al server fa solo la
-> verifica di raggiungibilità; i dati restano locali e non vengono inviati.
+> **Stato: implementato (versione alpha), provato end-to-end** tra due app e il server reale
+> (FastAPI + PostgreSQL), oltre che con test su ciascun lato. Mancano ancora le funzioni elencate
+> in *Limiti noti*.
 
 ## Collegamento in un secondo momento
 
 L'app nasce **solo locale**. Quando si collega a un server:
 
-1. **Adozione iniziale (da fare).** I dati già presenti vengono inviati come istantanea unica,
+1. **Adozione iniziale.** I dati già presenti vengono messi in coda una sola volta (con la loro versione) e inviati,
    perché prima del collegamento non c'era nessuna coda: l'outbox si riempie solo dopo.
 2. Da quel momento ogni modifica locale finisce in `sync_outbox` e viene inviata appena possibile.
 3. Il server diventa l'autorità per accesso e permessi; il singolo utente locale viene associato a
@@ -97,3 +94,43 @@ che l'utente è autorizzato a vedere. Alla revoca dell'accesso il database local
 Idempotenza con invii ripetuti, interruzione a metà lotto, modifiche concorrenti da due dispositivi,
 permessi revocati durante il periodo offline, orologio del client errato, rifiuto del merge
 automatico sui dati finanziari.
+
+
+## Come funziona oggi
+
+| Parte | Dove | Cosa fa |
+| --- | --- | --- |
+| Server | `backend/app/services/sync.py`, `app/api/v1/sync.py` | `POST /sync/push` e `GET /sync/pull` (vedi [API.md](API.md)); stato corrente dei record in `sync_records`, registro immutabile in `sync_changes` |
+| Client | `apps/desktop/src/sync/` | `SyncEngine` (adozione, invio, ricezione, conflitti), `HttpTransport` (accesso, rinnovo dei token) |
+| Interfaccia | Impostazioni → Sincronizzazione | Accesso (con codice 2FA se serve), «Sincronizza ora», conflitti, «Scollega»; stato nella barra in alto |
+
+- **Invio a cicli:** a ogni ciclo parte una sola operazione per record; la successiva riparte dalla
+  versione che il server ha risposto. Una modifica in conflitto blocca le successive dello stesso
+  record finché non viene risolta.
+- **Ricezione senza perdere nulla:** un record con modifiche locali in attesa **non viene mai
+  sovrascritto**; viene riscaricato al ciclo successivo. I dati ricevuti sono validati con le regole
+  dell'entità prima di essere salvati.
+- **Conflitti:** il client conserva la propria modifica e la copia del server e mostra le due
+  versioni; la persona sceglie «Tieni la mia» (la modifica riparte sopra la versione del server) o
+  «Usa quella del server» (le modifiche locali di quel record vengono scartate).
+- **Dati di riferimento** (piano dei conti, fasi della pipeline) hanno lo stesso identificativo su
+  ogni dispositivo; un record identico già presente sul server non è un conflitto.
+- **Sessione:** i token sono salvati nel database locale cifrato, non nel browser; il refresh token
+  ruota a ogni rinnovo e la nuova coppia viene salvata subito.
+- **Automatica:** all'avvio, ogni minuto e quando la finestra torna attiva. Se il server non
+  risponde l'app continua a funzionare e riprova.
+
+## Limiti noti
+
+- **Numerazione fiscale con più dispositivi.** Il numero progressivo delle fatture (e della prima
+  nota) è assegnato **dal dispositivo che emette**. Se due dispositivi emettono fatture, i numeri si
+  scontrano. Finché la numerazione non è assegnata dal server, **un solo dispositivo deve emettere
+  le fatture**; gli altri possono creare bozze, preventivi e ordini.
+- Le **impostazioni** (dati dell'azienda, aspetto, indicatori della panoramica) non si sincronizzano.
+- I **file allegati** non vengono inviati: si sincronizza la scheda, non il contenuto del file.
+- **Ricollegarsi dopo uno scollegamento** invia di nuovo tutti i dati; quelli identici già presenti
+  sul server sono riconosciuti, quelli diversi diventano conflitti.
+- Un record nuovo con un campo univoco già usato su un altro dispositivo (per esempio lo stesso
+  codice prodotto) non può essere salvato dal ricevente: compare tra i problemi del ciclo.
+- Il server non verifica i permessi per singolo tipo di record: chi ha `core.sync:update` può
+  scrivere qualsiasi tipo.

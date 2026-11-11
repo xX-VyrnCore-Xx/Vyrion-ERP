@@ -10,6 +10,7 @@ from app.models.auth import (
     RecoveryCode,
 )
 from app.models.company import Company, LegalForm, TaxRegime
+from app.models.sync import SyncChange, SyncRecord
 
 __all__ = [
     "AuditLog",
@@ -23,6 +24,8 @@ __all__ = [
     "RecoveryCode",
     "Role",
     "RolePermission",
+    "SyncChange",
+    "SyncRecord",
     "TaxRegime",
     "User",
     "UserPermission",

@@ -8,6 +8,7 @@ import { getSystemInfo, type SystemInfo } from "../lib/platform";
 import { parseServerUrl, type ServerUrlError } from "../lib/serverUrl";
 import { CompanyCard } from "./CompanyCard";
 import { DataCard } from "./DataCard";
+import { SyncCard } from "./SyncCard";
 
 interface Props {
   serverUrl: string | null;
@@ -109,6 +110,8 @@ export function SettingsPage({ serverUrl, onServerUrlChange, theme, onThemeChang
             </div>
           </form>
         </Card>
+
+        <SyncCard serverUrl={serverUrl} />
 
         <Card title={t.settings.appearance}>
           <fieldset>

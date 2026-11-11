@@ -5,8 +5,17 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ## [Unreleased]
 
-Milestone 4 (autenticazione e autorizzazioni), miglioramenti alle build e **app desktop
-offline-first con i moduli CRM, ERP e IT**.
+## [0.1.0-alpha.1] - 2026-11-11
+
+Primo rilascio pubblico: **Vyrion ERP funziona da solo, offline, con i dati cifrati sul computer**,
+con una prima implementazione reale dei moduli CRM, ERP e IT. Il collegamento a un server
+aziendale è facoltativo e successivo.
+
+**Anteprima tecnica (alpha).** L'integrazione email, la fatturazione elettronica (XML FatturaPA,
+SDI) e i PDF dei documenti non sono ancora disponibili; con più dispositivi la numerazione delle
+fatture va emessa da uno solo (vedi `docs/SYNC_ENGINE.md`).
+Gli installer non sono firmati: Windows mostrerà l'avviso «editore sconosciuto» e macOS richiede
+clic destro → Apri al primo avvio.
 
 ### Added
 
@@ -26,7 +35,13 @@ offline-first con i moduli CRM, ERP e IT**.
   licenze, backup, eventi di sicurezza, controlli di raggiungibilità, documentazione tecnica.
 - Panoramica con indicatori reali e personalizzabile, notifiche calcolate dai dati, ricerca globale,
   storico delle modifiche per record.
-- Il collegamento al server è **facoltativo** e successivo (vedi `docs/SYNC_ENGINE.md`).
+- **Sincronizzazione con il server** (facoltativa, attivabile in qualsiasi momento): invio e ricezione
+  idempotenti, unione automatica dei campi diversi, conflitti mostrati con le due versioni, nessun
+  dato contabile unito in automatico, adozione dei dati già inseriti al primo collegamento. API
+  `POST /sync/push` e `GET /sync/pull`, permessi `core.sync:view` e `core.sync:update`, migrazione `0004`.
+- Installer con procedura guidata curata (Windows: grafica, condizioni d'uso, cartella Start;
+  macOS: sfondo del DMG) e release con titolo e nomi dei file leggibili; la release si può avviare
+  da GitHub (Actions → Release) senza creare il tag a mano.
 
 - Workflow `build.yml`: gli installer Windows e macOS (Apple Silicon) si costruiscono a ogni
   modifica dell'app desktop, con prove reali (installazione e rimozione su Windows, verifica
@@ -49,9 +64,11 @@ offline-first con i moduli CRM, ERP e IT**.
 
 ### Verifiche
 
-Provato in locale: 62 test del frontend (compresi flussi dell'interfaccia: primo avvio, anagrafica,
-fattura emessa e incassata) e 41 test Rust (database cifrato, backup, ripristino, allegati), tutti
-sul motore SQLite reale; lint, tipi e `clippy -D warnings` puliti.
+Provato in locale: 74 test del frontend (compresi flussi dell'interfaccia: primo avvio,
+anagrafica, fattura emessa e incassata, collegamento al server), 256 test del backend su
+PostgreSQL e Redis veri, 41 test Rust (database cifrato, backup, ripristino, allegati) e una prova
+end-to-end con due app contro il server reale (adozione, unione, conflitto e risoluzione, rinnovo
+dei token); lint, tipi e `clippy -D warnings` puliti.
 
 **Non ancora verificato:** l'esecuzione dell'app in una finestra Tauri reale (non c'è uno schermo
 nell'ambiente di sviluppo), il contratto tra l'interfaccia e i comandi Rust oltre ai test unitari
@@ -59,7 +76,7 @@ dei due lati, la compilazione di SQLCipher su Windows e macOS e le prove degli i
 controllare nella CI), le funzioni che usano finestre di dialogo del sistema (allegati, salvataggio
 CSV, backup).
 
-**Non implementato:** sincronizzazione con il server, integrazione email, XML FatturaPA e invio SDI,
+**Non implementato:** numerazione fiscale assegnata dal server, integrazione email, XML FatturaPA e invio SDI,
 PDF dei documenti, permessi per record, blocco dell'app con PIN (i dati sono cifrati a riposo, ma
 chiunque acceda all'account del sistema operativo può aprire l'app).
 
@@ -75,15 +92,7 @@ chiunque acceda all'account del sistema operativo può aprire l'app).
   così limiti e audit vedono l'indirizzo reale del client.
 - La politica delle password rifiuta qualsiasi password che contenga l'indirizzo email intero.
 
-## [0.1.0-alpha.1] - 2026-11-11
-
-Primo rilascio: fondamenta del progetto (milestone 1, 2 e 3) e pipeline di rilascio.
-
-**Anteprima tecnica.** Contiene l'infrastruttura, il guscio dell'applicazione desktop e il modello
-dati di base. **I moduli ERP, CRM e IT, l'autenticazione e la sincronizzazione offline non sono
-ancora implementati.** Gli installer non sono firmati.
-
-### Added
+### Fondamenta (milestone 1-3)
 
 - Struttura monorepo: `apps/desktop`, `backend`, `infra`, `docs`, `tools`.
 - Backend FastAPI (Python 3.15) con configurazione da variabili d'ambiente e nessun segreto
