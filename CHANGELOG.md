@@ -7,6 +7,8 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ### Changed
 
+- **DMG macOS:** lo sfondo mostra il comando da incollare nel Terminale se macOS dice «danneggiata»
+  (l'app è firmata ma non notarizzata da Apple, e il browser aggiunge la quarantena al download).
 - **Configurazione dell'azienda in un secondo momento.** All'avvio non c'è più la schermata
   obbligatoria: tutti i moduli sono subito utilizzabili e un avviso (con «Completa ora») ricorda
   di inserire i dati aziendali, necessari solo per emettere documenti.

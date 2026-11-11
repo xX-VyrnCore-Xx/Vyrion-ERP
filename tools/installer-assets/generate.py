@@ -98,14 +98,18 @@ def dmg() -> None:
     f_b, f_s = font(BOLD, 13), font(FONTS, 11)
     steps = [
         ("1", "Trascina Vyrion ERP in Applicazioni"),
-        ("2", "Apri l'app: se macOS la blocca, tasto destro \u2192 Apri"),
+        ("2", "Se macOS dice \u00abdanneggiata\u00bb, apri il Terminale e incolla:"),
         ("3", "Per disinstallare: trascina l'app nel Cestino"),
     ]
     for i, (n, text) in enumerate(steps):
-        y = 292 + i * 26
+        y = 292 + i * 26 + (20 if i == 2 else 0)
         d.ellipse((60, y - 10, 80, y + 10), fill=ACCENT_A)
         d.text((70, y), n, font=f_b, fill=BG, anchor="mm")
         d.text((92, y), text, font=f_s if i else font(BOLD, 12), fill=TEXT if i == 0 else MUTED, anchor="lm")
+    # the command, in a box under step 2 (the app is not notarized by Apple)
+    cmd = 'xattr -dr com.apple.quarantine "/Applications/Vyrion ERP.app"'
+    d.rounded_rectangle((92, 331, 590, 351), radius=5, fill=(26, 26, 33), outline=(60, 60, 75))
+    d.text((100, 341), cmd, font=font(["/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"] + FONTS, 10), fill=ACCENT_B, anchor="lm")
     d.text((w - 28, h - 16), "Funziona offline, senza server", font=f_s, fill=MUTED, anchor="rm")
     # arrow between the app icon (x=180) and the Applications folder (x=480)
     d.line((250, 190, 410, 190), fill=ACCENT_B, width=4)
