@@ -167,8 +167,9 @@ jobs:
               echo "VYRION_EOF_$name"
             } >> "$GITHUB_ENV"
           done
-          mkdir -p apps/desktop/src-tauri
-          echo '{"bundle":{"createUpdaterArtifacts":true}}' > apps/desktop/src-tauri/updater.conf.json
+          # The job's working directory is apps/desktop (see "defaults" above).
+          mkdir -p src-tauri
+          echo '{"bundle":{"createUpdaterArtifacts":true}}' > src-tauri/updater.conf.json
           echo "enabled=true" >> "$GITHUB_OUTPUT"
           echo "args=--config src-tauri/updater.conf.json" >> "$GITHUB_OUTPUT"
 
@@ -215,15 +216,27 @@ jobs:
                 cp "${sig[0]}" "$out.sig"
                 ;;
               dmg)
-                tar=(src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app.tar.gz)
-                if [ "${#tar[@]}" -ne 1 ] || [ ! -f "${tar[0]}.sig" ]; then
-                  echo "::error::update package or signature not found in bundle/macos"
-                  ls -la src-tauri/target/${{ matrix.target }}/release/bundle/macos || true
-                  exit 1
-                fi
+                macdir="src-tauri/target/${{ matrix.target }}/release/bundle/macos"
                 pkg="../../dist-release/Vyrion-ERP_${VERSION}_${{ matrix.asset }}.app.tar.gz"
-                cp "${tar[0]}" "$pkg"
-                cp "${tar[0]}.sig" "$pkg.sig"
+                tar=("$macdir"/*.app.tar.gz)
+                if [ "${#tar[@]}" -eq 1 ] && [ -f "${tar[0]}.sig" ]; then
+                  cp "${tar[0]}" "$pkg"
+                  cp "${tar[0]}.sig" "$pkg.sig"
+                else
+                  # Building only the disk image may not leave the zipped app behind: make it
+                  # from the .app that the disk image was built from, and sign it here.
+                  echo "::notice::no .app.tar.gz from the bundler: packing and signing the app"
+                  app=("$macdir"/*.app)
+                  if [ "${#app[@]}" -ne 1 ]; then
+                    echo "::error::app bundle not found in $macdir"
+                    ls -la "$macdir" || true
+                    exit 1
+                  fi
+                  COPYFILE_DISABLE=1 tar -czf "$pkg" -C "$macdir" "$(basename "${app[0]}")"
+                  pnpm tauri signer sign -k "$TAURI_SIGNING_PRIVATE_KEY" \
+                    -p "${TAURI_SIGNING_PRIVATE_KEY_PASSWORD:-}" "$pkg"
+                  test -f "$pkg.sig" || { echo "::error::signature was not written"; exit 1; }
+                fi
                 ;;
             esac
             echo "signed update package collected"
