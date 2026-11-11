@@ -7,8 +7,8 @@ documentata**. Nessuna funzione viene mostrata nell'interfaccia prima di avere u
 | --- | --- | --- |
 | 1 | Architettura e repository | ✅ Completata |
 | 2 | Configurazione dell'ambiente | ✅ Completata |
-| 3 | Database e backend | ⏳ Prossima |
-| 4 | Autenticazione e autorizzazioni | Pianificata |
+| 3 | Database e backend | ✅ Completata |
+| 4 | Autenticazione e autorizzazioni | ⏳ Prossima |
 | 5 | Applicazione desktop | Pianificata |
 | 6 | Sistema di sincronizzazione | Pianificata |
 | 7 | Moduli ERP | Pianificata |
@@ -47,13 +47,20 @@ Verifiche eseguite:
 Non ancora verificato: build e installatori su **Windows e macOS** (milestone 12), che richiedono
 runner dedicati e certificati di firma.
 
-## M3 — Database e backend (prossima)
+## M3 — Database e backend ✅
 
-- Modello base comune: UUID, `created_at`/`updated_at`, `version` per concorrenza ottimistica,
-  soft delete.
-- Tabelle fondamentali: azienda (forma giuridica + regime fiscale), utenti, ruoli, permessi, audit log.
-- Livello repository/servizi, gestione errori uniforme, paginazione e filtri.
-- Test di integrazione delle migrazioni (upgrade/downgrade) per ogni revisione.
+- Base comune: UUID v7, timestamp, `version` con optimistic locking, soft delete, paginazione a
+  cursore, errori con formato uniforme (nessun dettaglio interno nelle risposte).
+- Tabelle: azienda (forma giuridica + regime fiscale, vincoli nel database), utenti, ruoli,
+  permessi, audit log immutabile. Dettagli in [DATABASE.md](DATABASE.md).
+- Servizi con audit nella stessa transazione, validazione di partita IVA e codice fiscale,
+  catalogo permessi e ruoli di sistema sincronizzati con `python -m app.cli bootstrap`.
+- 70 test (di cui 27 su PostgreSQL reale): vincoli, conflitti di versione anche concorrenti,
+  immutabilità dell'audit, idempotenza della sincronizzazione del catalogo.
+
+**Non incluso, di proposito:** nessun endpoint per azienda, utenti e ruoli. Senza autenticazione e
+controllo dei permessi lato server (M4) esporli sarebbe una falla; i servizi sono pronti e
+verranno collegati ai router con i permessi già definiti.
 
 ## M4 — Autenticazione e autorizzazioni
 

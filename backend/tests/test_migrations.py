@@ -26,3 +26,28 @@ def test_upgrade_and_downgrade_roundtrip(monkeypatch: pytest.MonkeyPatch) -> Non
     assert version == ScriptDirectory.from_config(config).get_current_head()
     command.downgrade(config, "base")
     command.upgrade(config, "head")
+
+
+@pytest.mark.integration
+async def test_bootstrap_command_is_idempotent(migrated_database: object) -> None:
+    from sqlalchemy import func, select
+    from sqlalchemy.ext.asyncio import create_async_engine
+    from sqlalchemy.pool import NullPool
+
+    from app.cli import bootstrap
+    from app.core.permissions import CATALOG_KEYS, SYSTEM_ROLES
+    from app.models import Permission, Role
+
+    await bootstrap()
+    await bootstrap()
+    settings = integration_settings()
+    assert settings is not None
+    engine = create_async_engine(settings.database_url.unicode_string(), poolclass=NullPool)
+    async with engine.connect() as connection:
+        permissions = (
+            await connection.execute(select(func.count()).select_from(Permission))
+        ).scalar_one()
+        roles = (await connection.execute(select(func.count()).select_from(Role))).scalar_one()
+    await engine.dispose()
+    assert permissions == len(CATALOG_KEYS)
+    assert roles >= len(SYSTEM_ROLES)
