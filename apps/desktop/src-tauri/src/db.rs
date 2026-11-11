@@ -54,7 +54,7 @@ fn forbidden_function(name: &str) -> bool {
     matches!(name.as_str(), "load_extension" | "sqlcipher_export")
 }
 
-fn install_authorizer(conn: &Connection, internal: Arc<AtomicBool>) -> Result<(), String> {
+fn install_authorizer(conn: &mut Connection, internal: Arc<AtomicBool>) -> Result<(), String> {
     conn.authorizer(Some(move |ctx: AuthContext<'_>| -> Authorization {
         if internal.load(Ordering::SeqCst) {
             return Authorization::Allow;
@@ -114,7 +114,7 @@ fn to_json(value: ValueRef<'_>) -> Result<Json, String> {
 
 impl Database {
     pub fn open(path: &Path, key_hex: &str) -> Result<Self, String> {
-        let conn = open_keyed(path, key_hex)?;
+        let mut conn = open_keyed(path, key_hex)?;
         // FULL: a power cut must not lose an accepted invoice. Foreign keys are enforced.
         conn.execute_batch(
             "PRAGMA journal_mode = WAL;
@@ -125,7 +125,7 @@ impl Database {
         )
         .map_err(|e| format!("cannot configure the database: {e}"))?;
         let internal = Arc::new(AtomicBool::new(false));
-        install_authorizer(&conn, internal.clone())?;
+        install_authorizer(&mut conn, internal.clone())?;
         Ok(Self {
             conn: Mutex::new(conn),
             #[cfg(test)]
@@ -149,11 +149,7 @@ impl Database {
         let values = params.iter().map(to_sql).collect::<Result<Vec<_>, _>>()?;
         let conn = self.lock()?;
         let mut stmt = conn.prepare(sql).map_err(|e| e.to_string())?;
-        let names: Vec<String> = stmt
-            .column_names()
-            .iter()
-            .map(|n| (*n).to_string())
-            .collect();
+        let names: Vec<String> = stmt.column_names().map(str::to_string).collect();
         let mut rows = stmt
             .query(params_from_iter(values))
             .map_err(|e| e.to_string())?;
