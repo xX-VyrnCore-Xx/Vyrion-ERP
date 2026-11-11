@@ -81,7 +81,8 @@
           "y": 190
         },
         "background": "installer/dmg-background.png"
-      }
+      },
+      "signingIdentity": "-"
     },
     "longDescription": "Gestionale offline-first per ERP, CRM e IT management: i dati restano cifrati sul tuo computer; il collegamento a un server aziendale e' facoltativo.",
     "licenseFile": "installer/LICENSE.txt"

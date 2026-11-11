@@ -248,6 +248,13 @@ impl Database {
 
     /// Writes a copy protected by `passphrase` (not by the device key), so that it can be
     /// restored on another computer. The copy is read back and checked before it is kept.
+    /// Moves everything in the write-ahead log into the main file (done before quitting).
+    pub fn checkpoint(&self) -> Result<(), String> {
+        let conn = self.lock()?;
+        conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE)")
+            .map_err(|e| e.to_string())
+    }
+
     pub fn backup(&self, dest: &Path, passphrase: &str) -> Result<BackupInfo, String> {
         if passphrase.chars().count() < 12 {
             return Err("the backup passphrase must be at least 12 characters".into());

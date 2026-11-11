@@ -180,7 +180,8 @@ jobs:
             echo "| macOS 12 o successivo (Apple Silicon) | \`Vyrion-ERP_${VERSION}_macOS-AppleSilicon.dmg\` |"
             echo
             echo "- **Windows:** doppio clic sul file; l'installazione è per utente e non richiede l'amministratore."
-            echo "- **macOS:** apri il file, trascina Vyrion ERP in Applicazioni. Se l'app non è firmata, al primo avvio usa clic destro → Apri."
+            echo "- **macOS:** apri il file e trascina Vyrion ERP in Applicazioni. L'app non è notarizzata da Apple: al primo avvio macOS può dire che non può verificarla (o, con file scaricati da un browser, che è «danneggiata»). Vai in *Impostazioni di Sistema → Privacy e sicurezza → Apri comunque*, oppure da Terminale: \`xattr -dr com.apple.quarantine \"/Applications/Vyrion ERP.app\"\` e riapri l'app."
+            echo "- **Windows:** nella barra delle applicazioni (vicino all'orologio) compare l'icona di Vyrion ERP: clic destro per le azioni rapide e per «Esci definitivamente»."
             echo "- Verifica l'integrità del download con \`SHA256SUMS.txt\`."
             echo "- L'app funziona subito, offline, senza server."
           } > notes.md

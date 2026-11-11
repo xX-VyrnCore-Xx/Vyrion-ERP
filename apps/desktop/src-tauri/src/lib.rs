@@ -7,7 +7,9 @@ mod db;
 mod files;
 mod keystore;
 mod manager;
+mod prefs;
 mod system;
+mod tray;
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -20,6 +22,7 @@ use tauri_plugin_opener::OpenerExt;
 use crate::db::{BackupInfo, ExecResult, IntegrityReport};
 use crate::files::StoredFile;
 use crate::manager::{DbManager, DbStatus, RestoreOutcome};
+use crate::prefs::Prefs;
 use crate::system::{SystemSnapshot, TcpCheck};
 
 /// Host platform details shown in the application's "Informazioni" panel.
@@ -40,6 +43,7 @@ pub struct AppInfo {
 pub struct AppState {
     data_dir: PathBuf,
     db: Arc<DbManager>,
+    prefs: Prefs,
 }
 
 impl AppState {
@@ -50,7 +54,12 @@ impl AppState {
             &data_dir,
             keystore::platform_key_store(&data_dir),
         ));
-        Ok(Self { data_dir, db })
+        let prefs = Prefs::load(&data_dir);
+        Ok(Self {
+            data_dir,
+            db,
+            prefs,
+        })
     }
 }
 
@@ -102,6 +111,32 @@ fn write_text(dest: &Path, content: &str) -> Result<(), String> {
 async fn export_text(dest: String, content: String) -> Result<(), String> {
     let dest = destination(&dest)?;
     blocking(move || write_text(&dest, &content)).await
+}
+
+#[derive(Debug, Serialize)]
+pub struct ShellPrefs {
+    /// Whether this platform has a tray icon at all (the choice is meaningless without one).
+    tray_supported: bool,
+    close_to_tray: bool,
+}
+
+#[tauri::command]
+fn get_shell_prefs(state: State<'_, AppState>) -> ShellPrefs {
+    ShellPrefs {
+        tray_supported: tray::supported(),
+        close_to_tray: state.prefs.close_to_tray(),
+    }
+}
+
+#[tauri::command]
+fn set_close_to_tray(state: State<'_, AppState>, enabled: bool) -> Result<(), String> {
+    state.prefs.set_close_to_tray(enabled)
+}
+
+/// Ends the application for good (the same as "Esci definitivamente" in the tray menu).
+#[tauri::command]
+fn quit_app(app: tauri::AppHandle) {
+    tray::quit(&app);
 }
 
 #[tauri::command]
@@ -251,17 +286,46 @@ async fn attachment_open(
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let mut builder = tauri::Builder::default();
+    // Must be the first plugin: a second launch brings the running copy to the front.
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            tray::show_main_window(app);
+        }));
+    }
+    builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let dir = app.path().app_data_dir()?;
             app.manage(AppState::new(dir)?);
+            if tray::supported() {
+                tray::build(app.handle())?;
+            }
             Ok(())
+        })
+        // Closing the window hides it in the tray (unless the person turned that off); the
+        // tray menu has the real quit.
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                let keep_running = tray::supported()
+                    && window
+                        .app_handle()
+                        .try_state::<AppState>()
+                        .is_some_and(|state| state.prefs.close_to_tray());
+                if keep_running {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+            }
         })
         .invoke_handler(tauri::generate_handler![
             system_info,
             app_info,
+            get_shell_prefs,
+            set_close_to_tray,
+            quit_app,
             export_text,
             db_status,
             db_query,
@@ -278,8 +342,14 @@ pub fn run() {
             attachment_delete,
             attachment_open,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running Vyrion ERP");
+        .build(tauri::generate_context!())
+        .expect("error while building Vyrion ERP")
+        .run(|app, event| {
+            // Whatever way the app ends (tray, last window, system shutdown), flush the log.
+            if let tauri::RunEvent::Exit = event {
+                tray::flush_database(app);
+            }
+        });
 }
 
 #[cfg(test)]
