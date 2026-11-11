@@ -11,10 +11,13 @@
 !macroend
 
 !macro NSIS_HOOK_POSTINSTALL
-  ; Optional: start with Windows (stays in the tray). Silent installs answer "no".
+  ; Optional: start with Windows (stays in the tray). Silent installs answer "no", and an
+  ; in-app update (installer started with /UPDATE) does not ask again.
+  ${If} $UpdateMode <> 1
   MessageBox MB_YESNO|MB_ICONQUESTION|MB_DEFBUTTON2 "Vuoi avviare Vyrion ERP automaticamente all'accesso a Windows?$\r$\n$\r$\nL'app resta nella barra delle applicazioni; potrai cambiare idea disinstallando e reinstallando." /SD IDNO IDNO vyrion_no_autostart
     WriteRegStr HKCU "${VYRION_RUN_KEY}" "${PRODUCTNAME}" '"$INSTDIR\${MAINBINARYNAME}.exe"'
   vyrion_no_autostart:
+  ${EndIf}
 !macroend
 
 !macro NSIS_HOOK_PREUNINSTALL

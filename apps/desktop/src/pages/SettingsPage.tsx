@@ -9,6 +9,7 @@ import { parseServerUrl, type ServerUrlError } from "../lib/serverUrl";
 import { CompanyCard } from "./CompanyCard";
 import { DataCard } from "./DataCard";
 import { ShellCard } from "./ShellCard";
+import { UpdateCard } from "./UpdateCard";
 import { SyncCard } from "./SyncCard";
 
 interface Props {
@@ -63,6 +64,7 @@ export function SettingsPage({ serverUrl, onServerUrlChange, theme, onThemeChang
       <div className="grid max-w-3xl gap-4">
         <CompanyCard />
         <ShellCard />
+        <UpdateCard />
         <DataCard />
         <Card title={t.settings.serverSection}>
           <p className="mb-4 text-sm text-muted">{t.settings.serverIntro}</p>
