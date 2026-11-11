@@ -64,10 +64,11 @@ clic destro → Apri al primo avvio.
 
 ### Verifiche
 
-Provato in locale: 74 test del frontend, 256 del backend (su PostgreSQL e Redis veri), una prova
-end-to-end con due app contro il server reale e (compresi flussi dell'interfaccia: primo avvio, anagrafica,
-fattura emessa e incassata) e 41 test Rust (database cifrato, backup, ripristino, allegati), tutti
-sul motore SQLite reale; lint, tipi e `clippy -D warnings` puliti.
+Provato in locale: 74 test del frontend (compresi flussi dell'interfaccia: primo avvio,
+anagrafica, fattura emessa e incassata, collegamento al server), 256 test del backend su
+PostgreSQL e Redis veri, 41 test Rust (database cifrato, backup, ripristino, allegati) e una prova
+end-to-end con due app contro il server reale (adozione, unione, conflitto e risoluzione, rinnovo
+dei token); lint, tipi e `clippy -D warnings` puliti.
 
 **Non ancora verificato:** l'esecuzione dell'app in una finestra Tauri reale (non c'è uno schermo
 nell'ambiente di sviluppo), il contratto tra l'interfaccia e i comandi Rust oltre ai test unitari
