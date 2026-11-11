@@ -19,10 +19,17 @@ class AppError(Exception):
     status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR
     code: str = "internal_error"
 
-    def __init__(self, message: str, *, details: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        *,
+        details: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> None:
         super().__init__(message)
         self.message = message
         self.details = details or {}
+        self.headers = headers or {}
 
 
 class NotFoundError(AppError):
@@ -51,6 +58,29 @@ class ForbiddenError(AppError):
     code = "forbidden"
 
 
+class AuthenticationError(AppError):
+    """Missing, invalid, expired or revoked credentials. Never says which."""
+
+    status_code = status.HTTP_401_UNAUTHORIZED
+    code = "unauthenticated"
+
+    def __init__(self, message: str = "Authentication required", **kwargs: Any) -> None:
+        headers = {"WWW-Authenticate": "Bearer", **kwargs.pop("headers", {})}
+        super().__init__(message, headers=headers, **kwargs)
+
+
+class TooManyRequestsError(AppError):
+    status_code = status.HTTP_429_TOO_MANY_REQUESTS
+    code = "rate_limited"
+
+    def __init__(self, message: str, *, retry_after: int) -> None:
+        super().__init__(
+            message,
+            details={"retry_after_seconds": retry_after},
+            headers={"Retry-After": str(max(retry_after, 1))},
+        )
+
+
 def _body(code: str, message: str, details: dict[str, Any] | None = None) -> dict[str, Any]:
     return {"error": {"code": code, "message": message, "details": details or {}}}
 
@@ -70,7 +100,9 @@ def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppError)
     async def handle_app_error(_: Request, exc: AppError) -> JSONResponse:
         return JSONResponse(
-            status_code=exc.status_code, content=_body(exc.code, exc.message, exc.details)
+            status_code=exc.status_code,
+            content=_body(exc.code, exc.message, exc.details),
+            headers=exc.headers or None,
         )
 
     @app.exception_handler(RequestValidationError)

@@ -52,12 +52,13 @@ git tag v0.2.0-alpha.1 && git push origin v0.2.0-alpha.1
 
 ## Cosa fa la pipeline
 
-Workflow: `.github/workflows/release.yml`.
+Workflow: `.github/workflows/release.yml`, che usa la stessa definizione di build delle pull
+request (`build-desktop.yml`): ciò che si rilascia è ciò che la CI ha già costruito.
 
 | Job | Compito |
 | --- | --- |
 | `verify` | Il tag ha il formato giusto; **tutti i file di versione coincidono con il tag**; il commit è su `main`; i test degli strumenti passano |
-| `build` | Tre installer in parallelo (uno che fallisce non ferma gli altri) |
+| `build` | Due installer in parallelo (uno che fallisce non ferma l'altro), firmati se i segreti esistono |
 | `release` | Calcola gli `SHA256SUMS.txt`, compone le note, crea la release e allega i file |
 | `prune` | Elimina le release oltre le ultime 3 (solo se `release` è riuscito) |
 
@@ -67,10 +68,33 @@ Installer prodotti:
 | --- | --- | --- |
 | Windows 10/11 x64 | `vyrion-erp_<versione>_windows-x64.exe` | NSIS |
 | macOS Apple Silicon | `vyrion-erp_<versione>_macos-arm64.dmg` | DMG |
-| macOS Intel | `vyrion-erp_<versione>_macos-x64.dmg` | DMG, compilato in cross-compilazione sul runner Apple Silicon |
+
+**Non esiste una build per macOS Intel**, per scelta.
 
 L'installer **MSI non è prodotto**: WiX accetta solo identificatori di pre-release numerici, quindi
 rifiuterebbe versioni come `0.2.0-alpha.1`. Si potrà aggiungere per le sole versioni stable.
+
+## Build su ogni pull request
+
+`.github/workflows/build.yml` costruisce gli stessi due installer (non firmati, conservati 7
+giorni) a ogni modifica a `apps/desktop`, così una build rotta si scopre nella PR e non il giorno
+del rilascio. Ogni build:
+
+- esegue controllo dei tipi e test del frontend prima di compilare;
+- rifiuta un installer sospettosamente piccolo (meno di 1 MB);
+- **Windows:** installa l'installer in modo silenzioso in una cartella temporanea, verifica che
+  l'eseguibile sia presente, lo disinstalla e verifica che sia stato rimosso;
+- **macOS:** verifica l'immagine disco (`hdiutil verify`), la apre, controlla il pacchetto `.app`
+  e che il binario sia `arm64`, e riporta lo stato della firma;
+- scrive un checksum SHA-256 accanto a ogni installer; la release li riunisce e li **riverifica**
+  dopo il download.
+
+Gli installer sono configurati per un'app che lavora offline:
+
+- **Windows:** installazione per utente (nessun amministratore, nessun UAC), runtime WebView2
+  **incorporato** nell'installer (funziona su macchine senza Internet), lingua italiana;
+- **macOS:** richiede macOS 12 o successivo; finestra del DMG con la classica icona di
+  trascinamento in Applicazioni.
 
 Se una build fallisce, la release non viene creata. Correggi, sposta il tag sul commit buono o
 usa un nuovo numero di versione, e riparti. Rieseguire un workflow già riuscito in parte aggiorna

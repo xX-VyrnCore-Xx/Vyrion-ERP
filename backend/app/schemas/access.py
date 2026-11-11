@@ -72,6 +72,8 @@ class RoleCreate(BaseModel):
 
 
 class UserRead(BaseModel):
+    """Account data safe to show to administrators. Credentials never appear here."""
+
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
@@ -79,6 +81,11 @@ class UserRead(BaseModel):
     email: str
     full_name: str
     is_active: bool
+    has_password: bool
+    totp_enabled: bool
+    locked_until: datetime | None
+    last_login_at: datetime | None
     roles: list[RoleSummary]
+    direct_permissions: list[PermissionRead]
     created_at: datetime
     updated_at: datetime

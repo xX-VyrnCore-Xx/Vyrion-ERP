@@ -23,6 +23,9 @@ TypeScript resta alla 6 finché `typescript-eslint` non supporta la 7.
 | --- | --- | --- |
 | Tauri | 2 | Shell nativa, installatori, aggiornamenti |
 | Rust | stabile (≥ 1.80) | Core nativo |
+| rusqlite + SQLCipher | bundled, OpenSSL incluso | Database locale cifrato |
+| keyring | 3 | Chiave del database nel portachiavi (Windows, macOS) |
+| sql.js | 1.x | Solo test e sviluppo nel browser: SQLite in memoria, **escluso dalla build di produzione** |
 
 ## Backend
 
@@ -35,6 +38,9 @@ TypeScript resta alla 6 finché `typescript-eslint` non supporta la 7.
 | psycopg | 3 | Driver PostgreSQL |
 | Alembic | 1.20+ | Migrazioni |
 | redis-py | 8 | Client Redis |
+| argon2-cffi | 25 | Hash delle password (Argon2id) |
+| cryptography | 50 | Cifratura Fernet dei segreti memorizzati |
+| pyotp | 2 | TOTP (RFC 6238) |
 | uv | 0.11 | Dipendenze e ambienti |
 | ruff, mypy (strict), pytest | — | Qualità e test |
 
@@ -54,8 +60,6 @@ TypeScript resta alla 6 finché `typescript-eslint` non supporta la 7.
 
 | Esigenza | Scelta prevista | Milestone |
 | --- | --- | --- |
-| Hashing password | `argon2-cffi` (Argon2id) | 4 |
-| 2FA | TOTP (RFC 6238) | 4 |
 | Archiviazione token sul client | Portachiavi di sistema via plugin Tauri | 5 |
 | Stato server lato client | TanStack Query | 5 |
 | Cifratura SQLite locale | SQLCipher | 6 |

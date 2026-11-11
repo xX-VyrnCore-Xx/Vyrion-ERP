@@ -11,8 +11,12 @@ from app.core.config import Settings
 
 
 def create_engine(settings: Settings) -> AsyncEngine:
+    return create_engine_for_url(settings.database_url.unicode_string())
+
+
+def create_engine_for_url(url: str) -> AsyncEngine:
     return create_async_engine(
-        settings.database_url.unicode_string(),
+        url,
         pool_pre_ping=True,
         pool_size=10,
         max_overflow=10,

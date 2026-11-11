@@ -4,7 +4,7 @@ from alembic import context
 from sqlalchemy import create_engine, pool
 
 from app import models  # noqa: F401  (registers every table on the metadata)
-from app.core.config import get_settings
+from app.core.config import get_database_url
 from app.db.base import Base
 
 config = context.config
@@ -12,7 +12,7 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 target_metadata = Base.metadata
-database_url = get_settings().database_url.unicode_string()
+database_url = get_database_url()
 
 
 def run_migrations_offline() -> None:

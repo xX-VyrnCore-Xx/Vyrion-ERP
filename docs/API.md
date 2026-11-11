@@ -5,21 +5,107 @@ API REST in JSON, descritta da OpenAPI. Base: `https://<server>/api/v1`.
 In sviluppo la specifica è disponibile su `/openapi.json` e la documentazione interattiva su `/docs`.
 **In produzione entrambe sono disattivate.**
 
-## Endpoint disponibili
+## Autenticazione
 
-### `GET /api/v1/health/live`
+Le richieste protette portano `Authorization: Bearer <access_token>`. Senza token, o con un token
+non valido, scaduto o revocato, la risposta è `401` con `WWW-Authenticate: Bearer`. Con un token
+valido ma senza il permesso necessario è `403`.
 
-Il processo è attivo. Non interroga le dipendenze.
+```
+POST /auth/login ──► authenticated ──────────────► access_token (15 min) + refresh_token (14 gg)
+        │
+        └─► second_factor_required ──► POST /auth/login/second-factor ──► access + refresh
+```
+
+Il refresh token **ruota a ogni uso**: ogni risposta di `/auth/refresh` contiene una coppia nuova
+e la precedente smette di valere. Va sempre sostituito quello salvato.
+
+Ogni risposta riporta `X-Request-ID` (se il client ne invia uno valido viene mantenuto) e
+`Cache-Control: no-store`.
+
+### Accesso e sessioni
+
+| Metodo e percorso | Accesso | Funzione |
+| --- | --- | --- |
+| `POST /auth/login` | pubblico | Email e password. `status` vale `authenticated` (con `tokens`) oppure `second_factor_required` (con `second_factor.challenge_token`) |
+| `POST /auth/login/second-factor` | pubblico | `challenge_token` e `code` (TOTP di 6 cifre o codice di recupero) → token |
+| `POST /auth/refresh` | pubblico | `refresh_token` → nuova coppia di token |
+| `POST /auth/password/setup` | pubblico | `token` monouso e `new_password`: primo accesso o reset |
+| `POST /auth/logout` | sessione | Chiude questa sessione |
+| `POST /auth/logout-all` | sessione | Chiude tutte le sessioni, questa compresa |
+| `GET /auth/me` | sessione | Utente, elenco dei permessi effettivi, sessione |
+| `GET /auth/sessions` | sessione | Dispositivi connessi (`current` indica questo) |
+| `DELETE /auth/sessions/{id}` | sessione | Disconnette un proprio dispositivo (`404` se non è tuo) |
+| `GET /auth/login-history` | sessione | Ultimi accessi e tentativi falliti del proprio account |
+| `POST /auth/password/change` | sessione | `current_password`, `new_password`; chiude le altre sessioni |
+
+### Seconda verifica
+
+| Metodo e percorso | Funzione |
+| --- | --- |
+| `POST /auth/2fa/setup` | Genera il seme e l'URI `otpauth://` (da mostrare come QR). Non attiva ancora nulla |
+| `POST /auth/2fa/enable` | Conferma con un codice, attiva il 2FA e restituisce i **10 codici di recupero (una sola volta)** |
+| `POST /auth/2fa/disable` | Richiede `password` e `code` |
+
+### Esito degli errori di accesso
+
+| Caso | Risposta |
+| --- | --- |
+| Credenziali errate, account inesistente, disabilitato o senza password | `401 unauthenticated`, identiche tra loro |
+| Troppi tentativi (account o indirizzo) | `429 rate_limited` con `Retry-After` e `details.retry_after_seconds` |
+| Password nuova non accettabile | `422 invalid_input`, con l'elenco dei motivi in `details.password` |
+| Password attuale sbagliata (cambio password) | `422`, non `401`, per non farla scambiare per una sessione scaduta |
+
+## Amministrazione
+
+Ogni percorso richiede il permesso indicato. Le regole che dipendono da *chi* agisce e *su chi*
+(non concedere ciò che non si ha, gestire amministratori, non agire su se stessi) danno `403`.
+
+### Utenti
+
+| Metodo e percorso | Permesso | Funzione |
+| --- | --- | --- |
+| `GET /users` | `core.users:view` | Elenco paginato |
+| `POST /users` | `core.users:create` | Crea l'account **senza password**; la risposta contiene `setup_token` (una sola volta) |
+| `GET /users/{id}` | `core.users:view` | Dettaglio |
+| `PATCH /users/{id}` | `core.users:update` | Modifica parziale con `version`; `is_active` richiede anche `core.users:admin` |
+| `DELETE /users/{id}?version=N` | `core.users:delete` | Eliminazione logica, libera l'email |
+| `PUT /users/{id}/roles` | `core.users:admin` | Sostituisce i ruoli (`roles`, `version`) |
+| `PUT /users/{id}/permissions` | `core.users:admin` | Sostituisce le concessioni dirette (`permissions`, `version`) |
+| `POST /users/{id}/revoke-sessions` | `core.users:admin` | Disconnette l'utente da tutti i dispositivi |
+| `POST /users/{id}/password-reset` | `core.users:admin` | Nuovo `setup_token`; annulla i precedenti |
+| `POST /users/{id}/2fa/reset` | `core.users:admin` | Disattiva il 2FA e chiude le sessioni |
+
+### Ruoli, azienda, audit
+
+| Metodo e percorso | Permesso | Funzione |
+| --- | --- | --- |
+| `GET /roles`, `GET /roles/{id}` | `core.roles:view` | Ruoli con i loro permessi |
+| `GET /roles/permissions` | `core.roles:view` | Catalogo dei permessi assegnabili |
+| `POST /roles` | `core.roles:create` | Nuovo ruolo personalizzato |
+| `PUT /roles/{id}/permissions` | `core.roles:update` | Sostituisce i permessi (non per i ruoli di sistema) |
+| `DELETE /roles/{id}?version=N` | `core.roles:delete` | Solo se non assegnato |
+| `GET /company` | `core.company:view` | `404` finché l'azienda non è configurata |
+| `PUT /company` | `core.company:update` | Senza `version` crea, con `version` aggiorna |
+| `GET /audit-log` | `core.audit_log:view` | Più recenti per primi; filtri `entity_type`, `entity_id`, `actor_user_id`, `action`, `since`, `until` |
+
+Il registro di audit non ha percorsi di scrittura: `POST`, `PUT`, `PATCH` e `DELETE` danno `405`.
+
+## Salute del server
+
+### `GET /health/live`
+
+Il processo è attivo. Non interroga le dipendenze. Pubblico e fuori dal limite di richieste.
 
 ```json
 { "status": "ok", "version": "0.1.0-alpha.1" }
 ```
 
-### `GET /api/v1/health/ready`
+### `GET /health/ready`
 
 Verifica reale di PostgreSQL (`SELECT 1`) e Redis (`PING`), ciascuna con timeout
 (`VYRION_HEALTH_CHECK_TIMEOUT`, predefinito 2 s). Usato dal client per stabilire se il server è
-raggiungibile.
+raggiungibile. Pubblico.
 
 | Stato HTTP | Significato |
 | --- | --- |
@@ -42,18 +128,26 @@ tecnici restano nei log del server.
 
 ## Formato degli errori
 
-In vigore da ora per tutte le risposte di errore:
+Per tutte le risposte di errore:
 
 ```json
 { "error": { "code": "version_conflict", "message": "…", "details": { "current_version": 3 } } }
 ```
 
-Codici: `invalid_input` (422), `unauthenticated` (401), `forbidden` (403), `not_found` (404),
-`conflict` (409), `version_conflict` (409), `rate_limited` (429), `internal_error` (500). Gli errori
-di validazione elencano campo, messaggio e tipo, **mai il valore ricevuto**; gli errori interni non
-espongono dettagli.
+| Codice | HTTP | Uso |
+| --- | --- | --- |
+| `invalid_input` | 422 | Richiesta non valida |
+| `unauthenticated` | 401 | Non autenticato o credenziali errate |
+| `forbidden` | 403 | Permesso mancante o regola di autorizzazione |
+| `not_found` | 404 | Risorsa inesistente |
+| `conflict` | 409 | Duplicato o stato incompatibile |
+| `version_conflict` | 409 | Modificato da altri: `details` riporta `expected_version` e `current_version` |
+| `rate_limited` | 429 | Troppe richieste o tentativi; vedere `Retry-After` |
+| `internal_error` | 500 | Errore del server, senza dettagli |
 
-## Convenzioni per i prossimi endpoint
+Gli errori di validazione elencano campo, messaggio e tipo, **mai il valore ricevuto**.
+
+## Convenzioni
 
 | Aspetto | Regola |
 | --- | --- |
@@ -63,20 +157,10 @@ espongono dettagli.
 | Identificativi | UUID |
 | Date | ISO 8601 in UTC |
 | Importi | Stringhe decimali (`"1250.00"`) + valuta; mai numeri in virgola mobile |
-| Autenticazione | `Authorization: Bearer <token>` (M4) |
-| Idempotenza | Intestazione `Idempotency-Key` sulle scritture ripetibili (obbligatoria per la sync) |
-| Concorrenza | Campo `version` nel corpo; `409 Conflict` se superato |
-| Paginazione | A cursore: `?limit=&cursor=` → `{ "items": [], "next_cursor": null }` |
-| Errori | `{ "error": { "code": "...", "message": "...", "details": {} } }` |
-
-| Codice | Uso |
-| --- | --- |
-| `400` / `422` | Richiesta non valida |
-| `401` | Non autenticato |
-| `403` | Permesso mancante |
-| `404` | Risorsa inesistente o non visibile all'utente |
-| `409` | Conflitto di versione o di stato |
-| `429` | Limite di richieste superato |
+| Concorrenza | `version` nel corpo (o `?version=` per `DELETE`); `409 version_conflict` se superata |
+| Paginazione | A cursore: `?limit=&cursor=` → `{ "items": [], "next_cursor": null }` (`limit` 1–200) |
+| Idempotenza | Intestazione `Idempotency-Key` sulle scritture ripetibili (obbligatoria per la sync, M6) |
+| Permessi | Ogni rotta protetta dichiara il permesso con `require(...)` |
 
 ## CORS
 

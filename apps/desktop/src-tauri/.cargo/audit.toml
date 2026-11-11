@@ -1,0 +1,6 @@
+# RUSTSEC-2024-0429: unsoundness in glib 0.18 (VariantStrIter). glib comes from the GTK 3
+# bindings that Tauri 2 / wry use for the Linux webview (tauri -> muda -> gtk -> glib). Vyrion
+# ships only for Windows and macOS, where glib is not compiled, and the fixed glib needs GTK 4,
+# which Tauri has not adopted. Revisit when Tauri updates its Linux stack.
+[advisories]
+ignore = ["RUSTSEC-2024-0429"]

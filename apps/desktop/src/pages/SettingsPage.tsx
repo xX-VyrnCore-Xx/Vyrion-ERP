@@ -6,6 +6,8 @@ import type { Theme } from "../hooks/useTheme";
 import { t } from "../i18n/it";
 import { getSystemInfo, type SystemInfo } from "../lib/platform";
 import { parseServerUrl, type ServerUrlError } from "../lib/serverUrl";
+import { CompanyCard } from "./CompanyCard";
+import { DataCard } from "./DataCard";
 
 interface Props {
   serverUrl: string | null;
@@ -56,8 +58,11 @@ export function SettingsPage({ serverUrl, onServerUrlChange, theme, onThemeChang
   return (
     <>
       <PageHeader title={t.settings.title} subtitle={t.settings.subtitle} />
-      <div className="grid max-w-2xl gap-4">
+      <div className="grid max-w-3xl gap-4">
+        <CompanyCard />
+        <DataCard />
         <Card title={t.settings.serverSection}>
+          <p className="mb-4 text-sm text-muted">{t.settings.serverIntro}</p>
           <form onSubmit={submit} noValidate>
             <label htmlFor={inputId} className="mb-1.5 block text-sm text-fg">
               {t.settings.serverUrl}
@@ -96,6 +101,11 @@ export function SettingsPage({ serverUrl, onServerUrlChange, theme, onThemeChang
                 {t.settings.save}
               </Button>
               {serverUrl !== null && <Button onClick={remove}>{t.settings.remove}</Button>}
+              {serverUrl !== null && (
+                <a className="self-center text-sm text-accent hover:underline" href="#/server">
+                  {t.settings.serverStatusLink}
+                </a>
+              )}
             </div>
           </form>
         </Card>

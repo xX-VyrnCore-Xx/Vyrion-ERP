@@ -1,7 +1,24 @@
 # Motore di sincronizzazione
 
-> **Stato: progettato, non implementato (milestone 6).** Oggi il client rileva solo la
-> raggiungibilità del server; non esistono ancora database locale né coda.
+> **Stato.** Il lato client è predisposto: ogni modifica ha identificativo UUID v7, versione e
+> `base_version`, e — **quando il collegamento al server è attivo** — viene scritta nella tabella
+> `sync_outbox` nella stessa transazione. **Non sono ancora implementati**: le API di
+> sincronizzazione del server, il client che invia e riceve, l'adozione iniziale dei dati
+> esistenti e la gestione dei conflitti. Fino ad allora il collegamento al server fa solo la
+> verifica di raggiungibilità; i dati restano locali e non vengono inviati.
+
+## Collegamento in un secondo momento
+
+L'app nasce **solo locale**. Quando si collega a un server:
+
+1. **Adozione iniziale (da fare).** I dati già presenti vengono inviati come istantanea unica,
+   perché prima del collegamento non c'era nessuna coda: l'outbox si riempie solo dopo.
+2. Da quel momento ogni modifica locale finisce in `sync_outbox` e viene inviata appena possibile.
+3. Il server diventa l'autorità per accesso e permessi; il singolo utente locale viene associato a
+   un account del server.
+
+Perché l'outbox si scrive solo dopo il collegamento: in modalità locale non c'è nessuno a cui
+inviarla, e accumulare operazioni che nessuno consumerà farebbe crescere il database senza motivo.
 
 ## Obiettivo
 
