@@ -1,0 +1,58 @@
+name: Prune releases
+
+# Keeps only the newest releases (and their tags). Called by the Release workflow after
+# every successful release; it can also be run by hand, in dry-run mode by default.
+#
+# Ordering is Semantic Versioning precedence over tags shaped like vX.Y.Z or
+# vX.Y.Z-(alpha|beta|rc).N. Any other tag is never touched.
+
+on:
+  workflow_call:
+    inputs:
+      keep:
+        description: Releases to keep
+        type: number
+        default: 3
+      dry_run:
+        description: Only print what would be deleted
+        type: boolean
+        default: false
+      current_tag:
+        description: Tag just released; if it would not survive, nothing is deleted
+        type: string
+        default: ""
+  workflow_dispatch:
+    inputs:
+      keep:
+        description: Releases to keep
+        type: number
+        default: 3
+      dry_run:
+        description: Only print what would be deleted
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: prune-releases
+  cancel-in-progress: false
+
+jobs:
+  prune:
+    name: Prune old releases
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Prune
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          KEEP: ${{ inputs.keep }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          CURRENT_TAG: ${{ inputs.current_tag }}
+        run: bash tools/release/prune.sh

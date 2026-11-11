@@ -1,0 +1,221 @@
+name: Release
+
+# Pushing a tag vX.Y.Z or vX.Y.Z-(alpha|beta|rc).N builds the desktop installers for
+# Windows and macOS, publishes a GitHub release and then prunes releases older than the
+# newest three. See docs/RELEASING.md.
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-alpha.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-beta.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-rc.[0-9]+"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify tag
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      prerelease: ${{ steps.meta.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Tag format and version files
+        id: meta
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          python3 tools/release/version.py check --tag "$tag"
+          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+          if [[ "$tag" == *-* ]]; then pre=true; else pre=false; fi
+          echo "prerelease=$pre" >> "$GITHUB_OUTPUT"
+      - name: The tag must point at a commit on main
+        run: |
+          set -euo pipefail
+          git fetch --quiet origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::$GITHUB_REF_NAME is not on main; releases are cut from main only."
+            exit 1
+          fi
+      - name: Release tooling tests
+        run: python3 -m unittest discover -s tools/release -p "test_*.py"
+
+  build:
+    name: Build ${{ matrix.name }}
+    needs: verify
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows x64
+            slug: windows-x64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bundles: nsis
+          - name: macOS Apple Silicon
+            slug: macos-arm64
+            os: macos-latest
+            target: aarch64-apple-darwin
+            bundles: dmg
+          - name: macOS Intel
+            slug: macos-x64
+            os: macos-latest # cross-compiled from the Apple Silicon runner
+            target: x86_64-apple-darwin
+            bundles: dmg
+    defaults:
+      run:
+        shell: bash
+        working-directory: apps/desktop
+    env:
+      VERSION: ${{ needs.verify.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: apps/desktop/package.json
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: apps/desktop/pnpm-lock.yaml
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri
+          key: ${{ matrix.target }}
+
+      # Signing and notarization are opt-in: they happen only when the repository
+      # secrets exist. Nothing sensitive is ever stored in the repository.
+      - name: Detect macOS signing secrets
+        if: runner.os == 'macOS'
+        id: apple
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+        run: |
+          if [ -n "$APPLE_CERTIFICATE" ]; then echo "enabled=true" >> "$GITHUB_OUTPUT"; fi
+      - name: Enable macOS signing and notarization
+        if: steps.apple.outputs.enabled == 'true'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          # Multi-line safe form of writing to GITHUB_ENV.
+          for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY \
+                      APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+            {
+              echo "$name<<VYRION_EOF_$name"
+              echo "${!name}"
+              echo "VYRION_EOF_$name"
+            } >> "$GITHUB_ENV"
+          done
+
+      - run: pnpm install --frozen-lockfile
+      - name: Build installer
+        run: pnpm tauri build --target "${{ matrix.target }}" --bundles "${{ matrix.bundles }}"
+
+      - name: Collect installer and checksum
+        run: |
+          set -euo pipefail
+          bundle_dir="src-tauri/target/${{ matrix.target }}/release/bundle/${{ matrix.bundles }}"
+          mkdir -p ../../dist-release
+          shopt -s nullglob
+          case "${{ matrix.bundles }}" in
+            nsis) files=("$bundle_dir"/*.exe); ext=exe ;;
+            dmg)  files=("$bundle_dir"/*.dmg); ext=dmg ;;
+          esac
+          if [ "${#files[@]}" -ne 1 ]; then
+            echo "::error::expected exactly one installer in $bundle_dir, found ${#files[@]}"
+            ls -la "$bundle_dir" || true
+            exit 1
+          fi
+          out="../../dist-release/vyrion-erp_${VERSION}_${{ matrix.slug }}.${ext}"
+          cp "${files[0]}" "$out"
+          ls -la ../../dist-release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer-${{ matrix.slug }}
+          path: dist-release/*
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: Publish release
+    needs: [verify, build]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ github.ref_name }}
+      VERSION: ${{ needs.verify.outputs.version }}
+      PRERELEASE: ${{ needs.verify.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v4
+        with:
+          path: assets
+          pattern: installer-*
+          merge-multiple: true
+      - name: Checksums
+        working-directory: assets
+        run: |
+          set -euo pipefail
+          sha256sum -- * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+      - name: Release notes
+        run: |
+          set -euo pipefail
+          {
+            python3 tools/release/version.py notes "$VERSION"
+            echo
+            echo "## Installazione"
+            echo
+            echo "- **Windows:** \`vyrion-erp_${VERSION}_windows-x64.exe\`"
+            echo "- **macOS Apple Silicon:** \`vyrion-erp_${VERSION}_macos-arm64.dmg\`"
+            echo "- **macOS Intel:** \`vyrion-erp_${VERSION}_macos-x64.dmg\`"
+            echo
+            echo "Verifica l'integrità del file scaricato con \`SHA256SUMS.txt\`."
+            if [ "$PRERELEASE" = "true" ]; then
+              echo
+              echo "> Versione di anteprima (\`$VERSION\`): non destinata alla produzione."
+            fi
+          } > notes.md
+      - name: Create or update the release
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            # Re-run of a previous attempt: replace the assets, keep the release.
+            gh release upload "$TAG" assets/* --clobber
+          else
+            flags=(--verify-tag --title "Vyrion ERP $VERSION" --notes-file notes.md --generate-notes)
+            if [ "$PRERELEASE" = "true" ]; then flags+=(--prerelease); else flags+=(--latest); fi
+            gh release create "$TAG" "${flags[@]}" assets/*
+          fi
+
+  prune:
+    name: Prune old releases
+    needs: release
+    permissions:
+      contents: write
+    uses: ./.github/workflows/prune-releases.yml
+    with:
+      keep: 3
+      dry_run: false
+      current_tag: ${{ github.ref_name }}

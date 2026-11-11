@@ -69,8 +69,11 @@ cd apps/desktop/src-tauri && cargo fmt && cargo clippy --all-targets -- -D warni
 
 Ogni nuova dipendenza va motivata nella pull request. I lockfile si committano sempre.
 
-## Versioni
+## Versioni e rilasci
 
-La versione è allineata in `backend/pyproject.toml`, `backend/app/__init__.py`,
-`apps/desktop/package.json`, `apps/desktop/src-tauri/Cargo.toml` e
-`apps/desktop/src-tauri/tauri.conf.json`.
+I rilasci si fanno con un tag su `main` e la pipeline li costruisce e pubblica: vedi
+[docs/RELEASING.md](docs/RELEASING.md). La versione non si modifica a mano nei file:
+`python3 tools/release/version.py set <versione>`.
+
+La versione è scritta in 7 file (inclusi `Cargo.lock` e `uv.lock`) e `version.py check` verifica che
+coincidano; la CI lo esegue a ogni modifica.

@@ -13,6 +13,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  tooling:
+    name: Release tooling (tests, version consistency)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Every version file agrees
+        run: python3 tools/release/version.py check
+      - name: Tests
+        run: python3 -m unittest discover -s tools/release -p "test_*.py"
+      - name: Shell script lint
+        run: shellcheck tools/release/prune.sh
+
   backend:
     name: Backend (lint, types, tests)
     runs-on: ubuntu-24.04
