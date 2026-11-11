@@ -41,7 +41,7 @@ jobs:
       VYRION_DATABASE_URL: postgresql+psycopg://vyrion:ci-only-password@127.0.0.1:5432/vyrion_test
       VYRION_REDIS_URL: redis://127.0.0.1:6379/0
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
@@ -61,11 +61,11 @@ jobs:
       run:
         working-directory: apps/desktop
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
         with:
           package_json_file: apps/desktop/package.json
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
@@ -86,7 +86,7 @@ jobs:
       run:
         working-directory: apps/desktop/src-tauri
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install Tauri system libraries
         run: |
           sudo apt-get update
@@ -107,7 +107,7 @@ jobs:
     name: Server stack (Compose config, image build)
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Validate Compose file
         working-directory: infra
         run: docker compose --env-file .env.example config --quiet

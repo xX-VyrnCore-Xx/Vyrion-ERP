@@ -1,12 +1,12 @@
 # syntax=docker/dockerfile:1
-FROM python:3.13-slim AS builder
+FROM python:3.15-slim AS builder
 RUN pip install --no-cache-dir uv==0.11.32
 WORKDIR /app
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
-FROM python:3.13-slim
+FROM python:3.15-slim
 RUN groupadd --system --gid 10001 vyrion \
     && useradd --system --uid 10001 --gid vyrion --no-create-home vyrion
 WORKDIR /app
