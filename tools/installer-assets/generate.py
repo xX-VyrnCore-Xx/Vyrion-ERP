@@ -42,12 +42,22 @@ def gradient(size: tuple[int, int]) -> Image.Image:
     return img
 
 
-def mark(draw: ImageDraw.ImageDraw, box: tuple[int, int, int, int], fill=TEXT) -> None:
-    """The 'V' of the logo, scaled into `box`."""
+LEFT = (176, 163, 252)
+RIGHT = (91, 156, 245)
+
+
+def mark(draw: ImageDraw.ImageDraw, box: tuple[int, int, int, int], fill=None) -> None:
+    """The two-tone 'V' of the app icon, scaled into `box` (`fill` draws it in one colour)."""
     x0, y0, x1, y1 = box
     w, h = x1 - x0, y1 - y0
-    pts = [(0.00, 0.00), (0.22, 0.00), (0.50, 0.70), (0.78, 0.00), (1.00, 0.00), (0.62, 1.00), (0.38, 1.00)]
-    draw.polygon([(x0 + px * w, y0 + py * h) for px, py in pts], fill=fill)
+    # Geometry of the 1024 px icon: the V spans x 286..738, y 300..742.
+    def pt(px: float, py: float) -> tuple[float, float]:
+        return (x0 + (px - 286) / 452 * w, y0 + (py - 300) / 442 * h)
+
+    left = [pt(286, 300), pt(424, 300), pt(512, 566), pt(512, 742)]
+    right = [pt(512, 566), pt(600, 300), pt(738, 300), pt(512, 742)]
+    draw.polygon(left, fill=fill or LEFT)
+    draw.polygon(right, fill=fill or RIGHT)
 
 
 def sidebar() -> None:
@@ -59,7 +69,7 @@ def sidebar() -> None:
     mask = Image.linear_gradient("L").resize(img.size)
     img = Image.composite(shade, img, mask.point(lambda v: int(v * 0.85)))
     d = ImageDraw.Draw(img)
-    mark(d, (42, 48, 122, 128))
+    mark(d, (40, 46, 124, 130))
     d.text((82, 200), "Vyrion ERP", font=font(BOLD, 17), fill=TEXT, anchor="ma")
     d.text((82, 226), "ERP · CRM · IT", font=font(FONTS, 11), fill=MUTED, anchor="ma")
     d.text((82, 290), "VyrnCore Enterprises", font=font(FONTS, 9), fill=MUTED, anchor="ma")
@@ -70,7 +80,7 @@ def header() -> None:
     """Top banner of the inner wizard pages: 150 x 57."""
     img = Image.new("RGB", (150, 57), BG)
     d = ImageDraw.Draw(img)
-    mark(d, (14, 12, 46, 44), fill=ACCENT_A)
+    mark(d, (14, 12, 46, 44))
     d.text((56, 28), "Vyrion ERP", font=font(BOLD, 14), fill=TEXT, anchor="lm")
     img.save(OUT / "header.bmp", "BMP")
 
@@ -82,7 +92,7 @@ def dmg() -> None:
     d = ImageDraw.Draw(img)
     band = gradient((w, 6))
     img.paste(band, (0, 0))
-    mark(d, (28, 24, 60, 56), fill=ACCENT_A)
+    mark(d, (28, 24, 60, 56))
     d.text((72, 40), "Vyrion ERP", font=font(BOLD, 20), fill=TEXT, anchor="lm")
     d.text((w // 2, 316), "Trascina Vyrion ERP nella cartella Applicazioni", font=font(FONTS, 15), fill=TEXT, anchor="ma")
     d.text((w // 2, 342), "Al primo avvio l'app chiede i dati dell'azienda e parte subito, senza server.", font=font(FONTS, 11), fill=MUTED, anchor="ma")
