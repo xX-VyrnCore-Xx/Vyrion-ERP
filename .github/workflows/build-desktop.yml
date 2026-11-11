@@ -172,6 +172,9 @@ jobs:
           echo '{"bundle":{"createUpdaterArtifacts":true}}' > src-tauri/updater.conf.json
           echo "enabled=true" >> "$GITHUB_OUTPUT"
           echo "args=--config src-tauri/updater.conf.json" >> "$GITHUB_OUTPUT"
+          # macOS: building only the disk image leaves no .app behind; the update package is
+          # made from the app bundle, so build that one too.
+          if [ "$RUNNER_OS" = "macOS" ]; then echo "extra=,app" >> "$GITHUB_OUTPUT"; fi
 
       - run: pnpm install --frozen-lockfile
       - name: Frontend checks
@@ -179,7 +182,7 @@ jobs:
           pnpm typecheck
           pnpm test
       - name: Build installer
-        run: pnpm tauri build --target "${{ matrix.target }}" --bundles "${{ matrix.bundles }}" ${{ steps.updater.outputs.args }}
+        run: pnpm tauri build --target "${{ matrix.target }}" --bundles "${{ matrix.bundles }}${{ steps.updater.outputs.extra }}" ${{ steps.updater.outputs.args }}
 
       - name: Collect the installer
         run: |
