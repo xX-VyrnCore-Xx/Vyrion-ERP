@@ -172,7 +172,7 @@ export class EntityRepository {
     } as Rec;
 
     await this.runHook(this.def.beforeSave, tx, ctx, "create", null, record);
-    this.revalidate(record, "create");
+    this.revalidate(record);
     await this.checkReferences(tx, record, this.def.fields);
 
     await this.write("insert", tx, record);
@@ -217,7 +217,7 @@ export class EntityRepository {
     const record = { ...before, ...values } as Rec;
 
     await this.runHook(this.def.beforeSave, tx, ctx, "update", before, record);
-    this.revalidate(record, "update");
+    this.revalidate(record);
 
     const changed = this.def.fields.filter((f) => !sameValue(record[f.name], before[f.name]));
     if (changed.length === 0) return before;
@@ -321,7 +321,7 @@ export class EntityRepository {
   }
 
   /** Hooks may set fields; whatever they set must still be valid. */
-  private revalidate(record: Rec, _mode: "create" | "update"): void {
+  private revalidate(record: Rec): void {
     const editable: Record<string, unknown> = {};
     for (const field of this.def.fields) editable[field.name] = record[field.name];
     const clean = validateInput(this.def, editable, "create");
