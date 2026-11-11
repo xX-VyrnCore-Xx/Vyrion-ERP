@@ -1,0 +1,18 @@
+{
+	# No public ACME: the server lives on the VPN only.
+	auto_https disable_redirects
+	admin off
+}
+
+https://{$VYRION_SERVER_NAME} {
+	# Certificate issued by Caddy's local CA; its root must be trusted by the clients
+	# (see docs/DEPLOYMENT.md). Replace with `tls cert.pem key.pem` for a company CA.
+	tls internal
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		-Server
+	}
+	reverse_proxy backend:8000
+}
