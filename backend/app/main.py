@@ -8,6 +8,7 @@ from redis.asyncio import Redis
 from app import __version__
 from app.api.v1.router import api_router
 from app.core.config import Settings, get_settings
+from app.core.errors import register_error_handlers
 from app.core.logging import configure_logging
 from app.db.session import create_engine, create_session_factory
 
@@ -46,5 +47,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
         allow_headers=["Authorization", "Content-Type", "Idempotency-Key"],
     )
+    register_error_handlers(app)
     app.include_router(api_router)
     return app

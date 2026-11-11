@@ -40,6 +40,19 @@ raggiungibile.
 In caso di errore il componente riporta `{ "status": "error", "latency_ms": null }`. I dettagli
 tecnici restano nei log del server.
 
+## Formato degli errori
+
+In vigore da ora per tutte le risposte di errore:
+
+```json
+{ "error": { "code": "version_conflict", "message": "…", "details": { "current_version": 3 } } }
+```
+
+Codici: `invalid_input` (422), `unauthenticated` (401), `forbidden` (403), `not_found` (404),
+`conflict` (409), `version_conflict` (409), `rate_limited` (429), `internal_error` (500). Gli errori
+di validazione elencano campo, messaggio e tipo, **mai il valore ricevuto**; gli errori interni non
+espongono dettagli.
+
 ## Convenzioni per i prossimi endpoint
 
 | Aspetto | Regola |

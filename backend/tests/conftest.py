@@ -2,7 +2,11 @@ import os
 from collections.abc import AsyncIterator
 
 import pytest
+from alembic import command
+from alembic.config import Config
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.pool import NullPool
 
 from app.core.config import Settings
 from app.main import create_app
@@ -53,3 +57,32 @@ async def live_client() -> AsyncIterator[AsyncClient]:
         pytest.skip("VYRION_DATABASE_URL / VYRION_REDIS_URL not set")
     async for client in _client(settings):
         yield client
+
+
+@pytest.fixture(scope="session")
+def migrated_database() -> Settings:
+    """Real PostgreSQL at the latest schema revision; skips when not configured."""
+    settings = integration_settings()
+    if settings is None:
+        pytest.skip("VYRION_DATABASE_URL / VYRION_REDIS_URL not set")
+    command.upgrade(Config("alembic.ini"), "head")
+    return settings
+
+
+@pytest.fixture
+async def db_session(migrated_database: Settings) -> AsyncIterator[AsyncSession]:
+    """Session inside a transaction that is always rolled back: tests leave no data."""
+    engine = create_async_engine(
+        migrated_database.database_url.unicode_string(), poolclass=NullPool
+    )
+    async with engine.connect() as connection:
+        transaction = await connection.begin()
+        session = AsyncSession(
+            bind=connection, expire_on_commit=False, join_transaction_mode="create_savepoint"
+        )
+        try:
+            yield session
+        finally:
+            await session.close()
+            await transaction.rollback()
+    await engine.dispose()
