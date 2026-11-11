@@ -5,10 +5,15 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ## [Unreleased]
 
-Milestone 4 (autenticazione e autorizzazioni).
+Milestone 4 (autenticazione e autorizzazioni) e miglioramenti alle build.
 
 ### Added
 
+- Workflow `build.yml`: gli installer Windows e macOS (Apple Silicon) si costruiscono a ogni
+  modifica dell'app desktop, con prove reali (installazione e rimozione su Windows, verifica
+  dell'immagine disco su macOS) e checksum; workflow riutilizzabile `build-desktop.yml` condiviso
+  con la release.
+- `cargo audit` in CI.
 - Accesso con Argon2id; token opachi di sessione (accesso 15 minuti, rinnovo 14 giorni, durata
   massima 30 giorni) con rotazione del refresh token e rilevamento del riuso.
 - 2FA TOTP con 10 codici di recupero monouso, seme cifrato nel database, anti-riuso dei codici.
@@ -25,6 +30,9 @@ Milestone 4 (autenticazione e autorizzazioni).
 
 ### Changed
 
+- **Rimossa la build per macOS Intel**: restano Windows x64 e macOS Apple Silicon.
+- Installer Windows per singolo utente (senza amministratore), con WebView2 incorporato per le
+  macchine senza Internet e lingua italiana; DMG con layout di trascinamento.
 - Migrazioni e `bootstrap` richiedono solo l'URL del database, non i segreti applicativi.
 - Il backend non parte senza almeno una chiave di cifratura valida.
 - Dietro il proxy il backend si fida delle intestazioni `X-Forwarded-*` (rete interna di Docker),
@@ -61,7 +69,7 @@ ancora implementati.** Gli installer non sono firmati.
   audit delle dipendenze, validazione Compose, build dell'immagine, test degli strumenti di
   rilascio. Configurazione Dependabot.
 - Pipeline di rilascio su tag: verifica che tag e versioni coincidano, installer per Windows x64
-  (NSIS) e macOS Apple Silicon e Intel (DMG), checksum SHA-256, release su GitHub con alpha, beta e
+  (NSIS) e macOS Apple Silicon (DMG), checksum SHA-256, release su GitHub con alpha, beta e
   rc come pre-release.
 - Pulizia automatica: dopo ogni release restano le ultime 3, in ordine di precedenza semantica;
   eseguibile anche a mano in modalità di anteprima.

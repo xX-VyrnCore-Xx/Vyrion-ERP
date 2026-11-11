@@ -1,0 +1,34 @@
+name: Build
+
+# Builds the Windows and macOS (Apple Silicon) installers on every change that can affect
+# them, so a broken build is found on the pull request and not on release day. The
+# installers are unsigned and kept for a week; releases are cut by release.yml.
+
+on:
+  pull_request:
+    paths:
+      - "apps/desktop/**"
+      - "tools/release/**"
+      - ".github/workflows/build.yml"
+      - ".github/workflows/build-desktop.yml"
+  push:
+    branches: [main]
+    paths:
+      - "apps/desktop/**"
+      - ".github/workflows/build-desktop.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  desktop:
+    name: Desktop installers
+    uses: ./.github/workflows/build-desktop.yml
+    with:
+      sign: false
+      retention-days: 7

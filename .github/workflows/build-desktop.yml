@@ -1,0 +1,211 @@
+name: Build desktop
+
+# Single definition of how the desktop installers are built. It is called by:
+#   - build.yml    on pull requests and main (unsigned, to catch breakage early)
+#   - release.yml  on a version tag (signed when the secrets exist)
+#
+# Targets: Windows x64 (NSIS) and macOS Apple Silicon (DMG). There is deliberately no
+# macOS Intel build.
+
+on:
+  workflow_call:
+    inputs:
+      sign:
+        description: Sign and notarize macOS builds when the repository secrets exist
+        type: boolean
+        default: false
+      retention-days:
+        description: How long the installers are kept as workflow artifacts
+        type: number
+        default: 7
+
+permissions:
+  contents: read
+
+jobs:
+  version:
+    name: Read version
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.read.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: read
+        run: |
+          set -euo pipefail
+          python3 tools/release/version.py check
+          echo "version=$(python3 tools/release/version.py get)" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build ${{ matrix.name }}
+    needs: version
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows x64
+            slug: windows-x64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bundles: nsis
+          - name: macOS Apple Silicon
+            slug: macos-arm64
+            os: macos-latest
+            target: aarch64-apple-darwin
+            bundles: dmg
+    defaults:
+      run:
+        shell: bash
+        working-directory: apps/desktop
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      CARGO_INCREMENTAL: "0"
+      CARGO_TERM_COLOR: always
+      # Shown in the app's About panel.
+      VITE_APP_COMMIT: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: apps/desktop/package.json
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: apps/desktop/pnpm-lock.yaml
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri
+          key: ${{ matrix.target }}
+      - name: Toolchain versions
+        run: |
+          node --version
+          pnpm --version
+          rustc --version
+          cargo --version
+
+      # Signing and notarization are opt-in: only for tagged releases (inputs.sign) and only
+      # when the repository secrets exist. Nothing sensitive is stored in the repository, and
+      # pull-request builds never see the certificate.
+      - name: Detect macOS signing secrets
+        if: inputs.sign && runner.os == 'macOS'
+        id: apple
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+        run: |
+          if [ -n "$APPLE_CERTIFICATE" ]; then echo "enabled=true" >> "$GITHUB_OUTPUT"; fi
+      - name: Enable macOS signing and notarization
+        if: steps.apple.outputs.enabled == 'true'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          # Multi-line safe form of writing to GITHUB_ENV.
+          for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY \
+                      APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+            {
+              echo "$name<<VYRION_EOF_$name"
+              echo "${!name}"
+              echo "VYRION_EOF_$name"
+            } >> "$GITHUB_ENV"
+          done
+
+      - run: pnpm install --frozen-lockfile
+      - name: Frontend checks
+        run: |
+          pnpm typecheck
+          pnpm test
+      - name: Build installer
+        run: pnpm tauri build --target "${{ matrix.target }}" --bundles "${{ matrix.bundles }}"
+
+      - name: Collect the installer
+        run: |
+          set -euo pipefail
+          bundle_dir="src-tauri/target/${{ matrix.target }}/release/bundle/${{ matrix.bundles }}"
+          mkdir -p ../../dist-release
+          shopt -s nullglob
+          case "${{ matrix.bundles }}" in
+            nsis) files=("$bundle_dir"/*.exe); ext=exe ;;
+            dmg)  files=("$bundle_dir"/*.dmg); ext=dmg ;;
+          esac
+          if [ "${#files[@]}" -ne 1 ]; then
+            echo "::error::expected exactly one installer in $bundle_dir, found ${#files[@]}"
+            ls -la "$bundle_dir" || true
+            exit 1
+          fi
+          out="../../dist-release/vyrion-erp_${VERSION}_${{ matrix.slug }}.${ext}"
+          cp "${files[0]}" "$out"
+          size=$(wc -c < "$out")
+          echo "installer: $out ($size bytes)"
+          # An installer that is only a few kilobytes is a broken build, not a small app.
+          if [ "$size" -lt 3000000 ]; then
+            echo "::error::installer is suspiciously small ($size bytes)"
+            exit 1
+          fi
+
+      # Real smoke tests of what users will actually run.
+      - name: Smoke test the Windows installer (silent install and uninstall)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        working-directory: ${{ github.workspace }}
+        run: |
+          $installer = (Get-ChildItem dist-release -Filter *.exe).FullName
+          $target = Join-Path $env:RUNNER_TEMP 'vyrion-smoke'
+          Start-Process -FilePath $installer -ArgumentList '/S', "/D=$target" -Wait
+          $installed = Get-ChildItem $target -Filter *.exe -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -notmatch 'uninstall' }
+          if (-not $installed) {
+            Get-ChildItem $target -Recurse -ErrorAction SilentlyContinue | Select-Object -First 30 FullName
+            throw "No application executable was installed into $target"
+          }
+          Write-Host "Installed: $($installed.Name) ($([math]::Round($installed[0].Length / 1MB, 1)) MB)"
+          $uninstaller = Get-ChildItem $target -Filter 'uninstall*.exe' | Select-Object -First 1
+          if (-not $uninstaller) { throw 'The uninstaller is missing' }
+          Start-Process -FilePath $uninstaller.FullName -ArgumentList '/S' -Wait
+          Start-Sleep -Seconds 3
+          $left = Get-ChildItem $target -Filter *.exe -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -notmatch 'uninstall' }
+          if ($left) { throw 'The application was not removed by the uninstaller' }
+          Write-Host 'Install and uninstall succeeded'
+      - name: Smoke test the macOS disk image
+        if: runner.os == 'macOS'
+        working-directory: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          dmg="$(find dist-release -maxdepth 1 -name '*.dmg' -print -quit)"
+          hdiutil verify "$dmg"
+          mount_point="$(mktemp -d)"
+          hdiutil attach -nobrowse -readonly -mountpoint "$mount_point" "$dmg" >/dev/null
+          trap 'hdiutil detach "$mount_point" >/dev/null || true' EXIT
+          app="$(find "$mount_point" -maxdepth 1 -name '*.app' -print -quit)"
+          test -n "$app" || { echo "::error::no .app bundle inside the disk image"; exit 1; }
+          echo "app bundle: $app"
+          binary="$(find "$app/Contents/MacOS" -type f -perm -u+x -print -quit)"
+          test -n "$binary" || { echo "::error::no executable inside the app bundle"; exit 1; }
+          lipo -archs "$binary" | tee /dev/stderr | grep -q arm64
+          codesign --verify --deep --strict "$app" || echo "::notice::the app is not (fully) signed"
+
+      - name: Checksum
+        working-directory: ${{ github.workspace }}/dist-release
+        run: |
+          set -euo pipefail
+          for file in *; do
+            if command -v sha256sum >/dev/null; then sha256sum "$file" > "$file.sha256"
+            else shasum -a 256 "$file" > "$file.sha256"; fi
+          done
+          cat ./*.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer-${{ matrix.slug }}
+          path: dist-release/*
+          if-no-files-found: error
+          retention-days: ${{ inputs.retention-days }}
