@@ -7,6 +7,7 @@
 import { isValidDay, isValidInstant } from "../lib/dates";
 import { isCidr, isIpAddress } from "../lib/net";
 import type { SqlRunner } from "./db";
+import type { EntityRepository } from "./repository";
 import { ValidationError } from "./errors";
 
 export type ModuleKey = "crm" | "erp" | "it" | "system";
@@ -60,6 +61,8 @@ export interface FieldDef {
   searchable?: boolean;
   /** Never written to the audit trail (values are masked). */
   sensitive?: boolean;
+  /** Extra check on the normalised value; return an error message or null. */
+  validate?: (value: unknown) => string | null;
 }
 
 export type Rec = {
@@ -85,6 +88,8 @@ export type SaveMode = "create" | "update" | "delete";
 export interface HookContext {
   tx: SqlRunner;
   ctx: Ctx;
+  /** Repository of any entity, for logic that touches other records in the same transaction. */
+  repo: (key: string) => EntityRepository;
   mode: SaveMode;
   /** The record as stored before this change (null on create). */
   before: Rec | null;
@@ -203,6 +208,15 @@ export function normaliseValue(
   field: FieldDef,
   raw: unknown,
 ): { value: unknown } | { error: string } {
+  const result = normaliseBase(field, raw);
+  if ("value" in result && result.value !== null && field.validate) {
+    const message = field.validate(result.value);
+    if (message) return { error: message };
+  }
+  return result;
+}
+
+function normaliseBase(field: FieldDef, raw: unknown): { value: unknown } | { error: string } {
   if (isBlank(raw)) {
     return field.required ? { error: "Campo obbligatorio" } : { value: null };
   }

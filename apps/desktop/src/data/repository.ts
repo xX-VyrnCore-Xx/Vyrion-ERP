@@ -317,7 +317,15 @@ export class EntityRepository {
     before: Rec | null,
     record: Rec,
   ): Promise<void> {
-    if (hook) await hook({ tx, ctx, mode, before, record });
+    if (hook)
+      await hook({
+        tx,
+        ctx,
+        repo: (key) => new EntityRepository(this.registry.get(key), this.registry),
+        mode,
+        before,
+        record,
+      });
   }
 
   /** Hooks may set fields; whatever they set must still be valid. */
