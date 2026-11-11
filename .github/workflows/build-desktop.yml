@@ -145,13 +145,40 @@ jobs:
             } >> "$GITHUB_ENV"
           done
 
+      # In-app updates need signed packages. They are produced only for releases (inputs.sign)
+      # and only when the repository secret TAURI_SIGNING_PRIVATE_KEY exists; without it the
+      # installers are built as before and the release carries no update manifest.
+      - name: Enable signed update packages
+        if: inputs.sign
+        id: updater
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            echo "::notice::TAURI_SIGNING_PRIVATE_KEY is not set: no signed update packages"
+            exit 0
+          fi
+          for name in TAURI_SIGNING_PRIVATE_KEY TAURI_SIGNING_PRIVATE_KEY_PASSWORD; do
+            {
+              echo "$name<<VYRION_EOF_$name"
+              echo "${!name}"
+              echo "VYRION_EOF_$name"
+            } >> "$GITHUB_ENV"
+          done
+          mkdir -p apps/desktop/src-tauri
+          echo '{"bundle":{"createUpdaterArtifacts":true}}' > apps/desktop/src-tauri/updater.conf.json
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+          echo "args=--config src-tauri/updater.conf.json" >> "$GITHUB_OUTPUT"
+
       - run: pnpm install --frozen-lockfile
       - name: Frontend checks
         run: |
           pnpm typecheck
           pnpm test
       - name: Build installer
-        run: pnpm tauri build --target "${{ matrix.target }}" --bundles "${{ matrix.bundles }}"
+        run: pnpm tauri build --target "${{ matrix.target }}" --bundles "${{ matrix.bundles }}" ${{ steps.updater.outputs.args }}
 
       - name: Collect the installer
         run: |
@@ -176,6 +203,30 @@ jobs:
           if [ "$size" -lt 1000000 ]; then
             echo "::error::installer is suspiciously small ($size bytes)"
             exit 1
+          fi
+
+          # Signed update package (see "Enable signed update packages"): the Windows installer
+          # itself with its .sig, the zipped app with its .sig on macOS.
+          if [ "${{ steps.updater.outputs.enabled }}" = "true" ]; then
+            case "${{ matrix.bundles }}" in
+              nsis)
+                sig=("$bundle_dir"/*.exe.sig)
+                if [ "${#sig[@]}" -ne 1 ]; then echo "::error::update signature not found in $bundle_dir"; exit 1; fi
+                cp "${sig[0]}" "$out.sig"
+                ;;
+              dmg)
+                tar=(src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app.tar.gz)
+                if [ "${#tar[@]}" -ne 1 ] || [ ! -f "${tar[0]}.sig" ]; then
+                  echo "::error::update package or signature not found in bundle/macos"
+                  ls -la src-tauri/target/${{ matrix.target }}/release/bundle/macos || true
+                  exit 1
+                fi
+                pkg="../../dist-release/Vyrion-ERP_${VERSION}_${{ matrix.asset }}.app.tar.gz"
+                cp "${tar[0]}" "$pkg"
+                cp "${tar[0]}.sig" "$pkg.sig"
+                ;;
+            esac
+            echo "signed update package collected"
           fi
 
       # Real smoke tests of what users will actually run.

@@ -87,5 +87,16 @@
     },
     "longDescription": "Gestionale offline-first per ERP, CRM e IT management: i dati restano cifrati sul tuo computer; il collegamento a un server aziendale e' facoltativo.",
     "licenseFile": "installer/LICENSE.txt"
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IERFOUVEODE3NTlGMDAxNDQKUldSRUFmQlpGOWllM2pSRWx6aHlJeWJQQ2IyUzhZdEl6R0E4Yk40VmY0VHpoVUx0NWdkbnhhWXAK",
+      "endpoints": [
+        "https://github.com/xX-VyrnCore-Xx/Vyrion-ERP/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

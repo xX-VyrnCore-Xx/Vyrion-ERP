@@ -209,10 +209,52 @@ I certificati e le chiavi non vanno mai nel repository (`.gitignore` esclude `.p
 
 ## Aggiornamenti automatici
 
-**Non implementati.** Richiedono `tauri-plugin-updater`, una coppia di chiavi di firma degli
-aggiornamenti e un punto di distribuzione dei metadati: sono previsti nella milestone 12.
-Le release a rotazione (3) non sono adatte come archivio per l'updater: prima di attivarlo, va
-deciso dove conservare gli aggiornamenti.
+L'app controlla da sola se esiste una versione nuova e la installa con un clic (banner in alto e
+scheda **Impostazioni → Aggiornamenti**). Funziona così:
+
+- Il guscio (`tauri-plugin-updater`) legge
+  `https://github.com/xX-VyrnCore-Xx/Vyrion-ERP/releases/latest/download/latest.json`, cioè il
+  manifest dell'**ultima release finale** (le anteprime non vengono mai proposte).
+- Ogni pacchetto è firmato con la chiave privata del progetto; l'app contiene la chiave
+  **pubblica** (`plugins.updater.pubkey` in `tauri.conf.json`) e rifiuta quello che non è
+  autentico. Il controllo automatico avviene 15 secondi dopo l'avvio e ogni sei ore, si può
+  spegnere nelle impostazioni, e l'installazione parte solo se l'utente conferma.
+- Su Windows l'aggiornamento è il programma di installazione stesso, in modalità guidata ridotta
+  (`installMode: passive`), che non ripete la domanda sull'avvio con Windows. Su macOS è
+  l'app compressa (`.app.tar.gz`): scaricata dall'app, non porta la quarantena del browser.
+
+### Chiave di firma (da fare una volta)
+
+La coppia di chiavi si crea con `pnpm tauri signer generate`. La parte pubblica è già nel
+repository. La **privata** non va mai nel repository: va nei segreti di GitHub
+(*Settings → Secrets and variables → Actions*):
+
+| Segreto | Contenuto |
+| --- | --- |
+| `TAURI_SIGNING_PRIVATE_KEY` | il contenuto del file della chiave privata (una riga) |
+| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | la password, **solo se** la chiave ne ha una |
+
+Senza `TAURI_SIGNING_PRIVATE_KEY` la pipeline funziona come prima: gli installer escono lo
+stesso, ma la release non ha `latest.json` e l'app dice «Hai già l'ultima versione».
+Se la chiave si perde o viene sostituita, le app già installate non accettano più gli
+aggiornamenti: vanno reinstallate a mano una volta.
+
+### Cosa produce la pipeline
+
+Con la chiave presente, per ogni release (`build-desktop.yml` con `sign: true`) escono anche
+`…Windows-x64-Setup.exe.sig`, `…macOS-AppleSilicon.app.tar.gz` (+ `.sig`) e `latest.json`
+(generato da `tools/release/make_latest_json.py`, con test).
+
+### Limiti
+
+- La prima versione con questa funzione va installata a mano; gli aggiornamenti partono dalla
+  successiva.
+- L'aggiornamento non è notarizzato da Apple (macOS) e non è firmato con un certificato
+  Windows: la firma degli aggiornamenti è un'altra cosa e protegge dai pacchetti manomessi, non
+  dagli avvisi del sistema operativo.
+- Le release a rotazione (3) bastano: l'updater legge solo l'ultima.
+- Per scaricare dall'app serve poter raggiungere `github.com` (anche attraverso un proxy
+  aziendale); se non è raggiungibile il controllo automatico tace e quello manuale mostra l'errore.
 
 ## Verifiche eseguite
 

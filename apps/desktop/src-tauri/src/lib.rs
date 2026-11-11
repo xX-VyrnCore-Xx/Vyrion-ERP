@@ -139,6 +139,14 @@ fn quit_app(app: tauri::AppHandle) {
     tray::quit(&app);
 }
 
+/// Starts the application again after an update has been installed: the database log is
+/// flushed first, the same as for a normal quit.
+#[tauri::command]
+fn restart_app(app: tauri::AppHandle) {
+    tray::flush_database(&app);
+    app.restart();
+}
+
 #[tauri::command]
 fn system_info() -> SystemInfo {
     SystemInfo {
@@ -293,6 +301,8 @@ pub fn run() {
         builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             tray::show_main_window(app);
         }));
+        // In-app updates: the signed packages come from the GitHub releases (tauri.conf.json).
+        builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
     }
     builder
         .plugin(tauri_plugin_dialog::init())
@@ -326,6 +336,7 @@ pub fn run() {
             get_shell_prefs,
             set_close_to_tray,
             quit_app,
+            restart_app,
             export_text,
             db_status,
             db_query,

@@ -41,6 +41,12 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ### Added
 
+- **Aggiornamenti automatici dell'app.** Vyrion ERP controlla da solo (15 secondi dopo l'avvio e
+  ogni sei ore; si spegne nelle impostazioni) se su GitHub c'è una versione più recente, la
+  propone con un banner e la installa con un clic, senza riscaricare l'installer. I pacchetti
+  sono firmati e l'app rifiuta quelli non autentici; il manifest `latest.json` e i pacchetti
+  firmati vengono pubblicati con ogni release. Serve il segreto `TAURI_SIGNING_PRIVATE_KEY`
+  (vedi `docs/RELEASING.md`); la prima versione con la funzione va installata a mano.
 - **Windows: icona nella barra delle applicazioni.** Clic destro: apri, panoramica e avvisi, nuova
   fattura, nuova anagrafica, sincronizza ora, impostazioni/dati/backup, nascondi, **Esci
   definitivamente**. Clic sinistro: riapre la finestra. Chiudere la finestra la nasconde nella

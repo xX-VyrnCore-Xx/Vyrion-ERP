@@ -2,6 +2,7 @@ import { Suspense, lazy, useCallback, useEffect, useState, type ReactNode } from
 
 import { AppContext, useAsync, useWorkspace } from "./app/context";
 import { SyncProvider } from "./app/sync";
+import { UpdatesProvider } from "./app/updates";
 import { boot, type Booted } from "./app/boot";
 import { useRoute } from "./app/router";
 import { useSync } from "./app/sync";
@@ -14,6 +15,7 @@ import { loadServerUrl, saveServerUrl } from "./lib/serverUrl";
 import { DocumentRedirect } from "./pages/DocumentRedirect";
 import { getCompany } from "./modules/company";
 import { TopBar } from "./ui/TopBar";
+import { UpdateBanner } from "./ui/UpdateBanner";
 
 // Pages load on demand, so the window opens fast.
 const CalendarPage = lazy(() =>
@@ -105,7 +107,9 @@ export function App({ preloaded }: { preloaded?: Workspace }) {
   return (
     <AppContext.Provider value={{ ws: booted.ws, volatile: booted.volatile }}>
       <SyncProvider ws={booted.ws}>
-        <Shell volatile={booted.volatile} />
+        <UpdatesProvider>
+          <Shell volatile={booted.volatile} />
+        </UpdatesProvider>
       </SyncProvider>
     </AppContext.Provider>
   );
@@ -177,6 +181,7 @@ function Shell({ volatile }: { volatile: boolean }) {
           </div>
         ) : null}
         <TopBar go={go} />
+        <UpdateBanner />
         {company.data === null && !company.loading && path !== "settings" ? (
           <div
             role="status"

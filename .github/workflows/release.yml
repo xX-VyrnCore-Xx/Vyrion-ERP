@@ -154,6 +154,14 @@ jobs:
           # Re-verify what was downloaded: the artifact must match what was built.
           sha256sum --check SHA256SUMS.txt
           cat SHA256SUMS.txt
+      # The in-app updater reads latest.json from the latest release. It is written only when
+      # the build produced signed update packages (repository secret TAURI_SIGNING_PRIVATE_KEY).
+      - name: Update manifest
+        run: |
+          set -euo pipefail
+          notes="$(python3 tools/release/version.py notes "$VERSION" 2>/dev/null || true)"
+          python3 tools/release/make_latest_json.py --dir assets --version "$VERSION" \
+            --tag "$TAG" --repo "$GITHUB_REPOSITORY" --notes "$notes"
       - name: Release notes
         run: |
           set -euo pipefail
@@ -183,6 +191,7 @@ jobs:
             echo "- **macOS:** apri il file e trascina Vyrion ERP in Applicazioni. L'app non è notarizzata da Apple: al primo avvio macOS può dire che non può verificarla (o, con file scaricati da un browser, che è «danneggiata»). Vai in *Impostazioni di Sistema → Privacy e sicurezza → Apri comunque*, oppure da Terminale: \`xattr -dr com.apple.quarantine \"/Applications/Vyrion ERP.app\"\` e riapri l'app."
             echo "- **Windows:** nella barra delle applicazioni (vicino all'orologio) compare l'icona di Vyrion ERP: clic destro per le azioni rapide e per «Esci definitivamente»."
             echo "- Verifica l'integrità del download con \`SHA256SUMS.txt\`."
+            echo "- **Aggiornamenti:** dalla versione che include questa funzione, Vyrion ERP controlla da solo se c'è una versione nuova (Impostazioni → Aggiornamenti) e la installa con un clic: non serve riscaricare l'installer."
             echo "- L'app funziona subito, offline, senza server."
           } > notes.md
       - name: Create or update the release

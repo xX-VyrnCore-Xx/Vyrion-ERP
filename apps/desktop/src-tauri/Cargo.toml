@@ -30,6 +30,8 @@ tauri-plugin-opener = "2.5.5"
 # second launch must bring it back instead of opening another window on the same database.
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-single-instance = "2"
+# Updates from GitHub releases (signed; see docs/RELEASING.md).
+tauri-plugin-updater = "2"
 
 # The OS credential store holds the database key on the platforms the app ships for.
 # Linux is not a target: there the key falls back to a 0600 file (see keystore.rs).
