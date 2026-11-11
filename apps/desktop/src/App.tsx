@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { Suspense, lazy, useCallback, useEffect, useState, type ReactNode } from "react";
 
 import { AppContext, useAsync, useWorkspace } from "./app/context";
 import { SyncProvider } from "./app/sync";
@@ -11,25 +11,53 @@ import { Sidebar } from "./components/Sidebar";
 import { useServerStatus } from "./hooks/useServerStatus";
 import { useTheme } from "./hooks/useTheme";
 import { loadServerUrl, saveServerUrl } from "./lib/serverUrl";
-import { CalendarPage } from "./pages/CalendarPage";
-import { CompanyCard } from "./pages/CompanyCard";
-import { DashboardPage } from "./pages/DashboardPage";
-import { DeadlinesPage } from "./pages/DeadlinesPage";
-import { DocumentEditor } from "./pages/DocumentEditor";
 import { DocumentRedirect } from "./pages/DocumentRedirect";
-import { DocumentsPage } from "./pages/DocumentsPage";
-import { EntityFormPage } from "./pages/EntityFormPage";
-import { EntityListPage } from "./pages/EntityListPage";
-import { InventoryPage } from "./pages/InventoryPage";
-import { JournalPage } from "./pages/JournalPage";
-import { MonitorPage } from "./pages/MonitorPage";
-import { PipelinePage } from "./pages/PipelinePage";
-import { ReportsPage } from "./pages/ReportsPage";
-import { SettingsPage } from "./pages/SettingsPage";
-import { SystemStatusPage } from "./pages/SystemStatusPage";
 import { getCompany } from "./modules/company";
 import { TopBar } from "./ui/TopBar";
-import { PageHeader } from "./components/Card";
+
+// Pages load on demand, so the window opens fast.
+const CalendarPage = lazy(() =>
+  import("./pages/CalendarPage").then((m) => ({ default: m.CalendarPage })),
+);
+const DashboardPage = lazy(() =>
+  import("./pages/DashboardPage").then((m) => ({ default: m.DashboardPage })),
+);
+const DeadlinesPage = lazy(() =>
+  import("./pages/DeadlinesPage").then((m) => ({ default: m.DeadlinesPage })),
+);
+const DocumentEditor = lazy(() =>
+  import("./pages/DocumentEditor").then((m) => ({ default: m.DocumentEditor })),
+);
+const DocumentsPage = lazy(() =>
+  import("./pages/DocumentsPage").then((m) => ({ default: m.DocumentsPage })),
+);
+const EntityFormPage = lazy(() =>
+  import("./pages/EntityFormPage").then((m) => ({ default: m.EntityFormPage })),
+);
+const EntityListPage = lazy(() =>
+  import("./pages/EntityListPage").then((m) => ({ default: m.EntityListPage })),
+);
+const InventoryPage = lazy(() =>
+  import("./pages/InventoryPage").then((m) => ({ default: m.InventoryPage })),
+);
+const JournalPage = lazy(() =>
+  import("./pages/JournalPage").then((m) => ({ default: m.JournalPage })),
+);
+const MonitorPage = lazy(() =>
+  import("./pages/MonitorPage").then((m) => ({ default: m.MonitorPage })),
+);
+const PipelinePage = lazy(() =>
+  import("./pages/PipelinePage").then((m) => ({ default: m.PipelinePage })),
+);
+const ReportsPage = lazy(() =>
+  import("./pages/ReportsPage").then((m) => ({ default: m.ReportsPage })),
+);
+const SettingsPage = lazy(() =>
+  import("./pages/SettingsPage").then((m) => ({ default: m.SettingsPage })),
+);
+const SystemStatusPage = lazy(() =>
+  import("./pages/SystemStatusPage").then((m) => ({ default: m.SystemStatusPage })),
+);
 
 type Boot =
   { state: "loading" } | { state: "error"; message: string } | ({ state: "ready" } & Booted);
@@ -101,19 +129,7 @@ function Shell({ volatile }: { volatile: boolean }) {
   const path = route.path.join("/");
   const [section = "", a = "", b = ""] = route.path;
   let page: ReactNode;
-  if (company.data === null && !company.loading && path !== "settings") {
-    page = (
-      <>
-        <PageHeader
-          title="Benvenuto in Vyrion ERP"
-          subtitle="Per iniziare indica i dati dell'azienda. Si usano nei documenti e nei calcoli fiscali; potrai modificarli quando vuoi."
-        />
-        <div className="max-w-3xl">
-          <CompanyCard />
-        </div>
-      </>
-    );
-  } else if (section === "") page = <DashboardPage />;
+  if (section === "") page = <DashboardPage />;
   else if (section === "e" && a === "document" && b) page = <DocumentRedirect id={b} go={go} />;
   else if (section === "e" && a === "document") page = <DocumentsPage route={route} go={go} />;
   else if (section === "e" && a && ws.registry.has(a))
@@ -161,7 +177,27 @@ function Shell({ volatile }: { volatile: boolean }) {
           </div>
         ) : null}
         <TopBar go={go} />
-        <main className="flex-1 overflow-y-auto px-8 py-8">{page}</main>
+        {company.data === null && !company.loading && path !== "settings" ? (
+          <div
+            role="status"
+            className="flex items-center justify-between gap-4 border-b border-line bg-accent/10 px-8 py-2 text-sm"
+          >
+            <span>
+              Puoi usare subito tutti i moduli. I <strong>dati dell'azienda</strong> servono solo
+              per emettere documenti: completali quando vuoi.
+            </span>
+            <button
+              type="button"
+              onClick={() => go("settings")}
+              className="shrink-0 rounded-lg bg-accent px-3 py-1 text-xs font-medium text-accent-contrast hover:bg-accent-strong"
+            >
+              Completa ora
+            </button>
+          </div>
+        ) : null}
+        <main className="flex-1 overflow-y-auto px-8 py-8">
+          <Suspense fallback={<p className="text-sm text-muted">Caricamento…</p>}>{page}</Suspense>
+        </main>
       </div>
     </div>
   );

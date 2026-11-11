@@ -121,7 +121,10 @@ impl Database {
              PRAGMA synchronous = FULL;
              PRAGMA foreign_keys = ON;
              PRAGMA busy_timeout = 5000;
-             PRAGMA secure_delete = ON;",
+             PRAGMA secure_delete = ON;
+             PRAGMA temp_store = MEMORY;
+             PRAGMA cache_size = -20000;
+             PRAGMA wal_autocheckpoint = 1000;",
         )
         .map_err(|e| format!("cannot configure the database: {e}"))?;
         let internal = Arc::new(AtomicBool::new(false));
