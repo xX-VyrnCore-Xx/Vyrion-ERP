@@ -40,32 +40,32 @@ python3 tools/release/version.py check
 
 ## Come si pubblica
 
-**Di norma non si fa nulla: la release è automatica.** Ogni volta che una modifica a
+**Di norma non si fa nulla: la release è automatica e finale.** Ogni volta che una modifica a
 `apps/desktop/` (o a `build-desktop.yml`) arriva su `main`, il workflow *Release* costruisce gli
-installer, crea un **tag nuovo** e pubblica la release con i file. Se la build fallisce non esce
-nessuna release.
+installer, crea un **tag nuovo `vX.Y.Z`** e pubblica una **release normale, segnata come ultima**
+(non una pre-release), con i file e i checksum. Se la build fallisce non esce nessuna release.
 
 Il numero lo sceglie `tools/release/next_version.py`:
 
 | Situazione | Versione rilasciata |
 | --- | --- |
-| La versione nei file non ha ancora un tag (es. `0.1.0-alpha.2`) | quella dei file |
-| Esiste già il tag di quella versione | il contatore sale: `0.1.0-alpha.3`, `…alpha.4`, … sempre più alto di qualunque tag esistente della stessa linea |
-| Versione stabile (`1.0.0`) già rilasciata | nessuna release: alza la versione nei file |
-| È uscita la versione stabile della linea | nessuna release di pre-release di quella linea |
+| La linea `X.Y` della versione nei file non ha ancora una release | quella dei file (es. `0.1.0`) |
+| Esiste già `v0.1.0` | la patch sale: `0.1.1`, `0.1.2`, … sempre più alta di qualunque tag stabile esistente della stessa linea (anche dopo la pulizia di quelli vecchi) |
+| Nei file c'è una linea nuova (es. `0.2.0`, `1.0.0`) | quella dei file: la nuova linea parte da lì |
+| Nei file c'è un suffisso `-alpha.N` / `-rc.N` | il suffisso viene ignorato: si rilascia sempre il numero finale |
 
 La versione scelta viene scritta **solo nella copia di lavoro della build** (non viene committata),
 così installer, nome del file e tag coincidono; i file del repository restano alla versione che
-decidi tu. Per cambiare linea o canale (per esempio `beta` o `0.2.0`) imposta la versione con
-`version.py set` e fai il commit come sempre.
+decidi tu. Per cambiare linea (per esempio `0.2.0`) imposta la versione con `version.py set` e fai
+il commit come sempre.
 
-Le note della release usano la sezione del `CHANGELOG.md` della versione, se esiste; per le build
-automatiche senza sezione, il commit e l'elenco delle modifiche generato da GitHub. Si rilascia **una
-alla volta** (gruppo di concorrenza comune): se arrivano due modifiche ravvicinate, la seconda
-attende e prende il numero successivo. Le modifiche che non toccano l'app (solo backend, documenti)
-non producono installer né release.
+Le note della release usano la sezione del `CHANGELOG.md` della versione, se esiste; per le release
+automatiche senza sezione, il commit, i limiti noti e l'elenco delle modifiche generato da GitHub.
+Si rilascia **una alla volta** (gruppo di concorrenza comune): se arrivano due modifiche
+ravvicinate, la seconda attende e prende il numero successivo. Le modifiche che non toccano l'app
+(solo backend, documenti) non producono installer né release.
 
-Restano due modi manuali:
+Restano due modi manuali (utili anche per una pre-release a mano, es. `0.2.0-rc.1`):
 
 **A. Da GitHub:** *Actions → Release → Run workflow* sul ramo `main`, con la versione scritta nei
 file (per esempio `0.1.0-alpha.3`). Rifiuta una versione già pubblicata.

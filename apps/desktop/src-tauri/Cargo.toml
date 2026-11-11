@@ -1,6 +1,6 @@
 [package]
 name = "vyrion-desktop"
-version = "0.1.0-alpha.2"
+version = "0.1.0"
 description = "Vyrion ERP — desktop application"
 authors = ["VyrnCore Enterprises"]
 license = "LicenseRef-Proprietary"

@@ -5,12 +5,26 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-11
+
+Prima release **finale**: stesso contenuto della `0.1.0-alpha.2` (app offline-first con moduli CRM,
+ERP e IT, sincronizzazione facoltativa con il server, installer con procedura guidata e icone
+nuove) più il nuovo modo di rilasciare.
+
+**Cosa non c'è ancora:** integrazione email, fatturazione elettronica (XML FatturaPA, SDI), PDF dei
+documenti, permessi per singolo record, numerazione fiscale assegnata dal server (con più computer,
+le fatture le emette uno solo: vedi `docs/SYNC_ENGINE.md`). Gli installer non sono firmati: Windows
+mostra l'avviso «editore sconosciuto» e macOS richiede clic destro → Apri al primo avvio. L'app non
+è stata provata in una finestra reale su Windows e macOS; la CI installa e disinstalla l'installer
+Windows in silenzio e verifica il disco immagine macOS.
+
 ### Changed
 
-- **Release automatiche:** ogni modifica all'app che arriva su `main` costruisce gli installer, crea
-  un tag nuovo (il contatore di pre-release sale da solo, sempre sopra ai tag esistenti) e
-  pubblica la release con i file. Non si costruisce più due volte: le build di `main` sono quelle
-  della release. Vedi `docs/RELEASING.md`.
+- **Release finali e automatiche:** ogni modifica all'app che arriva su `main` costruisce gli
+  installer, crea un tag nuovo `vX.Y.Z` (il numero di patch sale da solo, sempre sopra ai tag
+  esistenti) e pubblica una release normale, segnata come ultima, con i file e i checksum. Se la
+  build fallisce non esce nulla. Le build di `main` sono quelle della release (niente doppio
+  lavoro). Vedi `docs/RELEASING.md`.
 
 ## [0.1.0-alpha.2] - 2026-11-11
 
