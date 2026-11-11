@@ -102,7 +102,7 @@ jobs:
       - name: Install Tauri system libraries
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev librsvg2-dev libssl-dev
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev librsvg2-dev libssl-dev libayatana-appindicator3-dev
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy

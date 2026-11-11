@@ -4,6 +4,8 @@ import { AppContext, useAsync, useWorkspace } from "./app/context";
 import { SyncProvider } from "./app/sync";
 import { boot, type Booted } from "./app/boot";
 import { useRoute } from "./app/router";
+import { useSync } from "./app/sync";
+import { useTrayEvents } from "./app/tray";
 import type { Workspace } from "./data/workspace";
 import { Sidebar } from "./components/Sidebar";
 import { useServerStatus } from "./hooks/useServerStatus";
@@ -88,6 +90,8 @@ function Shell({ volatile }: { volatile: boolean }) {
   const [theme, setTheme] = useTheme();
   const status = useServerStatus(serverUrl);
   const company = useAsync(() => getCompany(ws.db), []);
+  const sync = useSync();
+  useTrayEvents(go, sync.syncNow);
 
   const changeServerUrl = useCallback((url: string | null) => {
     saveServerUrl(url);

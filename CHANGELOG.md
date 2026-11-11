@@ -5,6 +5,24 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ## [Unreleased]
 
+### Fixed
+
+- **macOS: «il file è danneggiato».** L'app nel DMG aveva solo la firma «ad hoc» del binario e
+  non una firma valida del pacchetto (`code has no resources but signature indicates they must be
+  present`), che macOS segnala come file danneggiato. Ora il pacchetto è firmato in modo valido
+  (ad hoc) e la CI **fallisce** se la firma non verifica. L'app resta non notarizzata da Apple
+  (serve un account a pagamento): al primo avvio macOS può chiedere conferma; le istruzioni sono
+  nelle note di ogni release.
+
+### Added
+
+- **Windows: icona nella barra delle applicazioni.** Clic destro: apri, panoramica e avvisi, nuova
+  fattura, nuova anagrafica, sincronizza ora, impostazioni/dati/backup, nascondi, **Esci
+  definitivamente**. Clic sinistro: riapre la finestra. Chiudere la finestra la nasconde nella
+  barra (scelta modificabile in Impostazioni → Applicazione); «Esci da Vyrion ERP» chiude davvero.
+  Il database viene svuotato del registro prima dell'uscita.
+- Una sola copia dell'app alla volta: aprirla di nuovo riporta in primo piano quella già attiva.
+
 ## [0.1.0] - 2026-11-11
 
 Prima release **finale**: stesso contenuto della `0.1.0-alpha.2` (app offline-first con moduli CRM,

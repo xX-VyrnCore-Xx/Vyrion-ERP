@@ -101,6 +101,14 @@ impl DbManager {
             .unwrap_or_else(|| "the database is not available".into()))
     }
 
+    /// Flushes the log if the database is open; nothing to do (and no error) if it never was.
+    pub fn checkpoint(&self) -> Result<(), String> {
+        match self.database() {
+            Ok(db) => db.checkpoint(),
+            Err(_) => Ok(()),
+        }
+    }
+
     pub fn status(&self) -> DbStatus {
         let path = self.live_path();
         let size_bytes = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);

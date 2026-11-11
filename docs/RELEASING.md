@@ -132,6 +132,19 @@ del rilascio. Ogni build:
   installa e lo disinstalla in modo silenzioso, ma le pagine grafiche del wizard non sono verificate
   da prove automatiche.
 
+**macOS e Gatekeeper.** Il pacchetto `.app` è firmato **ad hoc** (`signingIdentity: "-"`): la firma
+è valida (la CI lo verifica con `codesign --verify --deep --strict` e fallisce altrimenti), ma non
+è di uno sviluppatore Apple e l'app non è **notarizzata**. Per questo, su un file scaricato, macOS
+chiede conferma al primo avvio (*Impostazioni di Sistema → Privacy e sicurezza → Apri comunque*, o
+`xattr -dr com.apple.quarantine "/Applications/Vyrion ERP.app"`). Senza firma valida il messaggio
+sarebbe invece «danneggiato». Per eliminare del tutto l'avviso servono un certificato *Developer ID*
+e la notarizzazione (vedi *Firma e notarizzazione*).
+
+**Icona nella barra (Windows).** Vedi `apps/desktop/src-tauri/src/tray.rs`: menu con azioni rapide e
+«Esci definitivamente»; chiudere la finestra la nasconde nella barra (preferenza in
+`shell-prefs.json`, modificabile da Impostazioni → Applicazione). Il comportamento della barra non è
+verificabile dalla CI (nessuno schermo): è compilato e controllato con clippy, non eseguito.
+
 Gli installer sono configurati per un'app che lavora offline:
 
 - **Windows:** installazione per utente (nessun amministratore, nessun UAC), runtime WebView2

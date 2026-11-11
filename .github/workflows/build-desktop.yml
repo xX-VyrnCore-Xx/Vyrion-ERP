@@ -220,7 +220,14 @@ jobs:
           binary="$(find "$app/Contents/MacOS" -type f -perm -u+x -print -quit)"
           test -n "$binary" || { echo "::error::no executable inside the app bundle"; exit 1; }
           lipo -archs "$binary" | tee /dev/stderr | grep -q arm64
-          codesign --verify --deep --strict "$app" || echo "::notice::the app is not (fully) signed"
+          # The bundle must carry a VALID signature, ad hoc at least: an invalid one is what
+          # macOS reports as "damaged and can't be opened". (Notarization is a separate matter.)
+          codesign -dv "$app" 2>&1 | grep -E "Signature|Identifier|flags" || true
+          if ! codesign --verify --deep --strict "$app"; then
+            echo "::error::the app bundle signature is invalid: macOS would call the app damaged"
+            exit 1
+          fi
+          spctl --assess --type execute "$app" || echo "::notice::not notarized: Gatekeeper asks for confirmation on first launch"
 
       - name: Checksum
         working-directory: ${{ github.workspace }}/dist-release

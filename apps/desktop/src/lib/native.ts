@@ -103,3 +103,19 @@ export async function pickSavePath(title: string, defaultPath: string): Promise<
   const { save } = await import("@tauri-apps/plugin-dialog");
   return (await save({ title, defaultPath })) ?? null;
 }
+
+export interface ShellPrefs {
+  tray_supported: boolean;
+  close_to_tray: boolean;
+}
+
+export const shell = {
+  prefs: () => invoke<ShellPrefs>("get_shell_prefs"),
+  setCloseToTray: async (enabled: boolean): Promise<void> => {
+    await invoke("set_close_to_tray", { enabled });
+  },
+  /** Ends the application for good (same as «Esci definitivamente» in the tray). */
+  quit: async (): Promise<void> => {
+    await invoke("quit_app");
+  },
+};
