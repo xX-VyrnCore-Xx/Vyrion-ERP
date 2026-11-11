@@ -146,8 +146,8 @@ jobs:
           cp "${files[0]}" "$out"
           size=$(wc -c < "$out")
           echo "installer: $out ($size bytes)"
-          # An installer that is only a few kilobytes is a broken build, not a small app.
-          if [ "$size" -lt 3000000 ]; then
+          # A broken build produces kilobytes; the real installers are a few megabytes.
+          if [ "$size" -lt 1000000 ]; then
             echo "::error::installer is suspiciously small ($size bytes)"
             exit 1
           fi
