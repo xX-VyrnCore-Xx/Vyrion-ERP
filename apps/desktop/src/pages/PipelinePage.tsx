@@ -38,10 +38,16 @@ export function PipelinePage({ go }: { go: (to: string) => void }) {
         <Button variant="primary" onClick={() => go(href("e", "opportunity", "new"))}>
           Nuova opportunità
         </Button>
-        <a className="text-sm text-accent hover:underline" href={href("e", "opportunity")}>
+        <a
+          className="rounded-lg px-3 py-2 text-sm text-muted hover:bg-raised hover:text-fg"
+          href={href("e", "opportunity")}
+        >
           Elenco
         </a>
-        <a className="text-sm text-accent hover:underline" href={href("e", "pipeline_stage")}>
+        <a
+          className="rounded-lg px-3 py-2 text-sm text-muted hover:bg-raised hover:text-fg"
+          href={href("e", "pipeline_stage")}
+        >
           Modifica le fasi
         </a>
       </Toolbar>
@@ -54,7 +60,7 @@ export function PipelinePage({ go }: { go: (to: string) => void }) {
             <section
               key={stage.id}
               aria-label={String(stage["name"])}
-              className="w-72 shrink-0 rounded-xl border border-line bg-surface"
+              className="min-h-48 min-w-60 flex-1 rounded-xl border border-line bg-surface"
             >
               <header className="border-b border-line px-3 py-2">
                 <h2 className="text-sm font-semibold text-fg">{String(stage["name"])}</h2>
@@ -66,6 +72,9 @@ export function PipelinePage({ go }: { go: (to: string) => void }) {
                 </p>
               </header>
               <ul className="space-y-2 p-2">
+                {items.length === 0 ? (
+                  <li className="py-6 text-center text-xs text-muted">Nessuna opportunità</li>
+                ) : null}
                 {items.map((o) => (
                   <li key={o.id} className="rounded-lg border border-line bg-raised p-3 text-sm">
                     <a

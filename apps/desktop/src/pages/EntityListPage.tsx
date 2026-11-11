@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useDeferredValue, useState } from "react";
 
 import { Button } from "../components/Button";
 import { PageHeader } from "../components/Card";
@@ -40,10 +40,17 @@ export function EntityListPage({
   const filterKey = JSON.stringify(filters);
   const columns = def.fields.filter((f) => f.list);
 
+  // Typing stays instant; the query follows once the keyboard pauses.
+  const deferredSearch = useDeferredValue(search);
   const result = useAsync(async () => {
-    const data = await ws.list(entityKey, { search, filters, limit: PAGE, offset: page * PAGE });
+    const data = await ws.list(entityKey, {
+      search: deferredSearch,
+      filters,
+      limit: PAGE,
+      offset: page * PAGE,
+    });
     return { ...data, refs: await resolveRefs(ws, def, data.rows) };
-  }, [entityKey, search, page, filterKey]);
+  }, [entityKey, deferredSearch, page, filterKey]);
 
   const query = new URLSearchParams(filters).toString();
   const newHref = `${href("e", entityKey, "new")}${query ? `?${query}` : ""}`;

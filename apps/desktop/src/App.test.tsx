@@ -23,6 +23,12 @@ const READY = {
   components: { database: { status: "ok", latency_ms: 2 }, redis: { status: "ok", latency_ms: 1 } },
 };
 
+const companyForm = (): HTMLElement => {
+  const form = screen.getByLabelText(/Ragione sociale/).closest("form");
+  if (!form) throw new Error("company form not found");
+  return form;
+};
+
 describe("first run", () => {
   it("asks for the company data and then shows the overview, with no network request", async () => {
     const fetchSpy = vi.fn();
@@ -36,18 +42,29 @@ describe("first run", () => {
 
     const user = userEvent.setup();
     render(<App preloaded={ws} />);
-    expect(await screen.findByText("Benvenuto in Vyrion ERP")).toBeInTheDocument();
+    expect(await screen.findByText(/Puoi usare subito tutti i moduli/)).toBeInTheDocument();
     expect(screen.getAllByText("Solo locale (nessun server)").length).toBeGreaterThan(0);
 
+    await user.click(screen.getByRole("button", { name: "Completa ora" }));
     await user.type(await screen.findByLabelText(/Ragione sociale/), "VyrnCore Srl");
     await user.type(screen.getByLabelText(/Partita IVA/), "12345678901"); // wrong checksum
-    await user.click(screen.getByRole("button", { name: "Salva" }));
+    await user.click(
+      within(companyForm()).getByRole("button", {
+        name: "Salva",
+      }),
+    );
     expect(await screen.findByText(/Partita IVA non valida/)).toBeInTheDocument();
 
     await user.clear(screen.getByLabelText(/Partita IVA/));
     await user.type(screen.getByLabelText(/Partita IVA/), "01234567897");
-    await user.click(screen.getByRole("button", { name: "Salva" }));
-    expect(await screen.findByRole("heading", { name: "Panoramica" })).toBeInTheDocument();
+    await user.click(
+      within(companyForm()).getByRole("button", {
+        name: "Salva",
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.queryByText(/Puoi usare subito tutti i moduli/)).not.toBeInTheDocument(),
+    );
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
