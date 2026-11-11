@@ -20,12 +20,7 @@ export function Sidebar({ path, onNavigate, connection }: SidebarProps) {
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-line bg-surface">
       <div className="flex items-center gap-2.5 px-5 py-5">
-        <span
-          aria-hidden="true"
-          className="grid size-7 place-items-center rounded-lg bg-linear-to-br from-accent to-info text-sm font-bold text-accent-contrast"
-        >
-          V
-        </span>
+        <img src="/favicon.svg" alt="" aria-hidden="true" className="size-8" />
         <span className="text-sm font-semibold tracking-tight text-fg">{t.appName}</span>
       </div>
       <nav aria-label={t.nav.label} className="flex-1 overflow-y-auto px-3 pb-3">

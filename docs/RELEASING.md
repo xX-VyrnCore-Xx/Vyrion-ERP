@@ -107,6 +107,11 @@ del rilascio. Ogni build:
   casella per avviare subito l'app. La disinstallazione offre di eliminare anche i dati (non
   selezionato di default). Lingua italiana.
 - **macOS (DMG):** finestra con sfondo e freccia «trascina in Applicazioni».
+- **Icona dell'app:** sorgente vettoriale `apps/desktop/src-tauri/app-icon.svg` (una «V» a due toni su
+  piastrella scura). Per rigenerare tutti i formati (`icon.ico` con 16–256 px, `icon.icns`, PNG),
+  esporta l'SVG in PNG 1024×1024 e lancia `pnpm tauri icon <file.png>` in `apps/desktop`, poi copia
+  in `src-tauri/icons/` solo i file elencati in `tauri.conf.json`. La stessa «V» è nel
+  `favicon.svg`, nella barra laterale e nella grafica degli installer.
 - La grafica si rigenera con `python3 tools/installer-assets/generate.py` (i file sono nel
   repository: le build non richiedono Pillow).
 - Il programma di installazione Windows non è stato guardato su una finestra reale: la CI lo
