@@ -6,7 +6,7 @@ changes:  python3 tools/installer-assets/generate.py
 """
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 OUT = Path(__file__).resolve().parents[2] / "apps/desktop/src-tauri/installer"
 BG = (11, 11, 15)
@@ -86,34 +86,76 @@ def header() -> None:
 
 
 def dmg() -> None:
-    """Background of the macOS disk image window: 660 x 400 (matches tauri.conf.json)."""
+    """Background of the macOS disk image window: 660 x 400 (matches tauri.conf.json).
+
+    Finder draws the icon names itself (black or white, depending on the system look), so the
+    two icons sit on mid-tone violet plates that keep both readable.
+    """
     w, h = 660, 400
-    img = Image.new("RGB", (w, h), BG)
+    scale = 2  # draw at 2x, then reduce: smooth edges
+    img = Image.new("RGB", (w * scale, h * scale), BG)
     d = ImageDraw.Draw(img)
-    band = gradient((w, 6))
-    img.paste(band, (0, 0))
-    mark(d, (28, 24, 60, 56))
-    d.text((72, 40), "Vyrion ERP", font=font(BOLD, 20), fill=TEXT, anchor="lm")
-    # numbered steps
-    f_b, f_s = font(BOLD, 13), font(FONTS, 11)
+    S = lambda *v: tuple(int(x * scale) for x in v)  # noqa: E731
+
+    # soft glow behind the title
+    glow = Image.new("RGB", img.size, BG)
+    gd = ImageDraw.Draw(glow)
+    gd.ellipse(S(130, -140, 530, 120), fill=(38, 32, 78))
+    glow = glow.filter(ImageFilter.GaussianBlur(60 * scale))
+    img.paste(glow)
+    d = ImageDraw.Draw(img)
+    img.paste(gradient((w * scale, 6 * scale)), (0, 0))
+
+    # title
+    f_title = font(BOLD, 20 * scale)
+    title = "Installa Vyrion ERP"
+    tw = d.textlength(title, font=f_title) / scale
+    left = (w - (28 + 12 + tw)) / 2
+    mark(d, S(left, 26, left + 28, 54))
+    d.text(S(left + 40, 40), title, font=f_title, fill=TEXT, anchor="lm")
+
+    # plates behind the two icons (app at x=180, Applications at x=480; icon centre y=170)
+    for cx in (180, 480):
+        box = (cx - 95, 76, cx + 95, 256)
+        top, bottom = (166, 154, 250), (128, 112, 241)
+        grad = Image.new("RGB", (190 * scale, 180 * scale))
+        gp = ImageDraw.Draw(grad)
+        for row in range(180 * scale):
+            t = row / (180 * scale - 1)
+            gp.line((0, row, 190 * scale, row), fill=tuple(round(a + (b - a) * t) for a, b in zip(top, bottom)))
+        mask = Image.new("L", grad.size, 0)
+        ImageDraw.Draw(mask).rounded_rectangle((0, 0, grad.width - 1, grad.height - 1), radius=22 * scale, fill=255)
+        img.paste(grad, S(box[0], box[1]), mask)
+        d = ImageDraw.Draw(img)
+        d.rounded_rectangle(S(*box), radius=22 * scale, outline=(190, 181, 252), width=scale)
+
+    # dashed arrow between the plates
+    y = 160
+    x = 292
+    while x < 372:
+        d.line(S(x, y, x + 12, y), fill=ACCENT_B, width=4 * scale)
+        x += 20
+    d.polygon([S(376, y - 14), S(404, y), S(376, y + 14)], fill=ACCENT_B)
+    d.text(S(330, y - 26), "trascina", font=font(FONTS, 12 * scale), fill=MUTED, anchor="mm")
+
+    # steps panel
+    d.rounded_rectangle(S(28, 282, 632, 384), radius=14 * scale, fill=(20, 20, 27), outline=(44, 44, 56), width=scale)
+    f_b, f_s = font(BOLD, 13 * scale), font(FONTS, 12 * scale)
     steps = [
-        ("1", "Trascina Vyrion ERP in Applicazioni"),
-        ("2", "Se macOS dice \u00abdanneggiata\u00bb, apri il Terminale e incolla:"),
-        ("3", "Per disinstallare: trascina l'app nel Cestino"),
+        (298, "1", "Trascina Vyrion ERP nella cartella Applicazioni.", TEXT),
+        (322, "2", "Se macOS dice \u00abdanneggiata\u00bb, apri il Terminale e incolla:", MUTED),
+        (366, "3", "Per disinstallare: trascina l'app nel Cestino.", MUTED),
     ]
-    for i, (n, text) in enumerate(steps):
-        y = 292 + i * 26 + (20 if i == 2 else 0)
-        d.ellipse((60, y - 10, 80, y + 10), fill=ACCENT_A)
-        d.text((70, y), n, font=f_b, fill=BG, anchor="mm")
-        d.text((92, y), text, font=f_s if i else font(BOLD, 12), fill=TEXT if i == 0 else MUTED, anchor="lm")
-    # the command, in a box under step 2 (the app is not notarized by Apple)
+    for cy, n, text, colour in steps:
+        d.ellipse(S(46, cy - 9, 64, cy + 9), fill=ACCENT_A)
+        d.text(S(55, cy), n, font=f_b, fill=BG, anchor="mm")
+        d.text(S(76, cy), text, font=f_s, fill=colour, anchor="lm")
     cmd = 'xattr -dr com.apple.quarantine "/Applications/Vyrion ERP.app"'
-    d.rounded_rectangle((92, 331, 590, 351), radius=5, fill=(26, 26, 33), outline=(60, 60, 75))
-    d.text((100, 341), cmd, font=font(["/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"] + FONTS, 10), fill=ACCENT_B, anchor="lm")
-    d.text((w - 28, h - 16), "Funziona offline, senza server", font=f_s, fill=MUTED, anchor="rm")
-    # arrow between the app icon (x=180) and the Applications folder (x=480)
-    d.line((250, 190, 410, 190), fill=ACCENT_B, width=4)
-    d.polygon([(412, 176), (440, 190), (412, 204)], fill=ACCENT_B)
+    d.rounded_rectangle(S(76, 335, 612, 355), radius=5 * scale, fill=(10, 10, 14), outline=(60, 60, 75), width=scale)
+    mono = font(["/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"] + FONTS, 11 * scale)
+    d.text(S(86, 345), cmd, font=mono, fill=ACCENT_B, anchor="lm")
+
+    img = img.resize((w, h), Image.LANCZOS)
     img.save(OUT / "dmg-background.png", "PNG", optimize=True)
 
 
