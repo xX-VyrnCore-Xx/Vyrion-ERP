@@ -7,6 +7,13 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ### Added
 
+- **Adeguamento cambi a fine anno** (Prima nota → Adeguamento cambi): i crediti e debiti in valuta estera ancora
+  aperti al 31 dicembre (al netto degli incassi e pagamenti fino a quella data) sono rivalutati al cambio
+  indicato per ogni valuta. Differenza tra valore al cambio e valore in libro: utili e perdite su cambi da
+  valutazione (conti 421 e 541), con scrittura al 31/12 e storno all'1/1 così l'incasso dell'anno dopo
+  trova il documento al cambio originale; confluiscono nel risultato alla chiusura dell'esercizio.
+  Annullabile (storno di entrambe le scritture); da registrare prima della chiusura. Migrazione 11.
+  Il trattamento fiscale delle differenze da valutazione va confermato dal commercialista.
 - **Esportazione per il commercialista** (Report → Esportazione per il commercialista): un archivio ZIP
   per anno con piano dei conti, prima nota (storni e chiusure indicati), bilancio di verifica, registri
   IVA di vendite e acquisti, liquidazioni, ritenute, crediti e debiti aperti a fine anno, prospetti paga

@@ -66,6 +66,7 @@ vero**. Spunta ogni riga e annota cosa vedi quando non coincide.
 - [ ] Senza cambio il documento non si salva.
 - [ ] Incasso in valuta: indico 1.220,00 USD e, come euro effettivi, 1.120,00 € → in prima nota compare un **utile su cambi di 10,91 €** (conto 420) e il credito si azzera.
 - [ ] Il PDF stampa gli importi in USD e la riga «Controvalore in euro».
+- [ ] Prima nota → **Adeguamento cambi** (anno della fattura): per USD indico il cambio `1,2` → valore al cambio **1.016,67 €** contro 1.109,09 € in libro, **perdita da valutazione 92,42 €**. «Registra l'adeguamento» crea due scritture (31/12 e storno 1/1); «Annulla» le storna entrambe.
 
 **Presenze e buste paga** — Personale → Presenze e buste paga. Dipendente di prova: lordo 2.000,00 €, contributi dipendente 10%, azienda 30%, ritenuta 20%.
 - [ ] Importo un CSV del timbratore (colonne: Dipendente, Data, Entrata, Uscita, Pausa) con 2–3 giorni: ore lavorate corrette; reimportando non si creano doppioni.

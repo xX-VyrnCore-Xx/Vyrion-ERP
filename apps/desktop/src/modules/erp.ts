@@ -1291,6 +1291,56 @@ const payslip: EntityDef = {
   },
 };
 
+/** The year-end adjustment of foreign-currency receivables and payables for one currency. */
+const fxRevaluation: EntityDef = {
+  key: "fx_revaluation",
+  module: "erp",
+  label: "Adeguamento cambi",
+  plural: "Adeguamenti cambi",
+  table: "fx_revaluations",
+  title: (r) => `Adeguamento cambi ${r["currency"]} ${r["year"]}`,
+  defaultOrder: "year desc",
+  fields: [
+    {
+      name: "year",
+      label: "Anno",
+      type: "integer",
+      required: true,
+      min: 2000,
+      max: 2100,
+      list: true,
+    },
+    {
+      name: "currency",
+      label: "Valuta",
+      type: "text",
+      required: true,
+      maxLength: 3,
+      unique: ["year"],
+      list: true,
+    },
+    {
+      name: "rate",
+      label: "Cambio al 31/12 (unità per 1 EUR)",
+      type: "decimal",
+      required: true,
+      min: 0,
+    },
+    { name: "gain", label: "Utili su cambi da valutazione", type: "money", default: 0, list: true },
+    {
+      name: "loss",
+      label: "Perdite su cambi da valutazione",
+      type: "money",
+      default: 0,
+      list: true,
+    },
+    { name: "notes", label: "Note", type: "longtext" },
+  ],
+  beforeDelete: async ({ tx, ctx, repo, record }) => {
+    await reverseEntries(tx, ctx, repo, record.id, "adeguamento cambi eliminato");
+  },
+};
+
 export const ERP_ENTITIES: EntityDef[] = [
   ACCOUNT,
   JOURNAL_ENTRY,
@@ -1312,6 +1362,7 @@ export const ERP_ENTITIES: EntityDef[] = [
   vatSettlement,
   attendance,
   payslip,
+  fxRevaluation,
 ];
 
 export type { Rec };
