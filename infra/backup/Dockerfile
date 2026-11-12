@@ -1,7 +1,8 @@
 # Backup service: pg_dump -> age -> checksum -> rotation, on a schedule. No secrets in the image.
-FROM alpine:3.22
-RUN apk add --no-cache bash jq age coreutils findutils postgresql18-client tzdata
+# Based on the same PostgreSQL image as the server, so pg_dump always matches its version.
+FROM postgres:18-alpine
+RUN apk add --no-cache bash jq age coreutils findutils tzdata
 COPY *.sh /opt/backup/
-RUN chmod +x /opt/backup/*.sh && adduser -D -u 10001 backup && mkdir /backups && chown backup /backups
-USER backup
+RUN chmod +x /opt/backup/*.sh && mkdir /backups && chown postgres:postgres /backups
+USER postgres
 ENTRYPOINT ["/opt/backup/scheduler.sh"]
