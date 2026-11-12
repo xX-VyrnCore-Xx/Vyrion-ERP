@@ -7,6 +7,18 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ### Changed
 
+- **Palette rinnovata** (tema scuro e chiaro): neutri freddi con una punta di viola, un solo accento
+  viola con un partner azzurro per i gradienti (pulsanti principali), colori di stato più vivi ma
+  leggibili, ombre morbide sulle schede e un unico bagliore statico sullo sfondo.
+- **Animazioni più fluide**: ingresso breve a ogni cambio pagina, comparsa del menu account e
+  dei sottomenu, schede della Panoramica che salgono una dopo l'altra e reagiscono al puntatore,
+  scheletro di caricamento al posto del testo «Caricamento…», pressione dei pulsanti. Si anima solo
+  `opacity` e `transform` (leggero per la GPU) e tutto si ferma se il sistema chiede meno movimento.
+- **Più reattiva e a basso consumo**: con la finestra nascosta (ridotta a icona, nella barra, su un
+  altro desktop) il controllo del server aspetta il ritorno invece di scattare ogni 15 secondi, la
+  sincronizzazione automatica rallenta di cinque volte, le schermate non si ricaricano e le
+  animazioni sono in pausa; più scritture ravvicinate fanno un solo aggiornamento delle schermate; le
+  pagine si caricano in anticipo nei momenti di inattività e il cambio pagina non blocca la scrittura.
 - **Sidebar rifatta, più compatta, con sottomenu.** Voci più basse e testo più piccolo; i gruppi
   CRM, ERP e IT si possono chiudere (resta visibile la voce in cui sei); molte voci hanno un
   sottomenu (per esempio Documenti → Fatture, Preventivi, Ordini…; Pipeline → Per fase, Elenco,

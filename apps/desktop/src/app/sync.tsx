@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 
+import { isHidden } from "../lib/visibility";
 import type { Workspace } from "../data/workspace";
 import { getSetting, setSetting } from "../data/system";
 import {
@@ -23,6 +24,8 @@ import { SyncEngine, type ConflictView, type SyncReport } from "../sync/engine";
 
 const SESSION = "sync.session";
 const AUTO_EVERY_MS = 60_000;
+/** With the window hidden only one tick in this many runs. */
+const HIDDEN_FACTOR = 5;
 
 export interface SyncState {
   connected: boolean;
@@ -144,12 +147,22 @@ export function SyncProvider({ ws, children }: { ws: Workspace; children: ReactN
 
   useEffect(() => {
     if (!state.connected) return;
-    const timer = setInterval(() => void run(), AUTO_EVERY_MS);
+    // While the window is hidden the link still syncs, but five times less often.
+    let skipped = 0;
+    const timer = setInterval(() => {
+      if (isHidden() && ++skipped % HIDDEN_FACTOR !== 0) return;
+      void run();
+    }, AUTO_EVERY_MS);
     const onFocus = () => void run();
+    const onVisible = () => {
+      if (!isHidden()) void run();
+    };
     window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       clearInterval(timer);
       window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [state.connected, run]);
 

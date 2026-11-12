@@ -88,14 +88,17 @@ export function DashboardPage() {
               {editing ? "Fine" : "Personalizza"}
             </Button>
           </div>
-          <section aria-label="Indicatori" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <section
+            aria-label="Indicatori"
+            className="stagger grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
+          >
             {shown.map((tile) => {
               const value = loaded?.figures[tile.key] ?? 0;
               const off = hidden.has(tile.key);
               return (
                 <div
                   key={tile.key}
-                  className={`rounded-xl border border-line bg-surface p-4 ${off ? "opacity-50" : ""}`}
+                  className={`lift rounded-xl border border-line bg-surface p-4 shadow-card ${off ? "opacity-50" : ""}`}
                 >
                   {editing ? (
                     <label className="flex items-center gap-2 text-sm text-fg">

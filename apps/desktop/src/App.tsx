@@ -12,6 +12,7 @@ import { Sidebar } from "./components/Sidebar";
 import { useServerStatus } from "./hooks/useServerStatus";
 import { useTheme } from "./hooks/useTheme";
 import { loadServerUrl, saveServerUrl } from "./lib/serverUrl";
+import { trackVisibility } from "./lib/visibility";
 import { DocumentRedirect } from "./pages/DocumentRedirect";
 import { getCompany } from "./modules/company";
 import { TopBar } from "./ui/TopBar";
@@ -60,6 +61,16 @@ const SettingsPage = lazy(() =>
 const SystemStatusPage = lazy(() =>
   import("./pages/SystemStatusPage").then((m) => ({ default: m.SystemStatusPage })),
 );
+
+const PAGES = [
+  () => import("./pages/EntityListPage"),
+  () => import("./pages/EntityFormPage"),
+  () => import("./pages/DocumentsPage"),
+  () => import("./pages/DocumentEditor"),
+  () => import("./pages/PipelinePage"),
+  () => import("./pages/CalendarPage"),
+  () => import("./pages/SettingsPage"),
+];
 
 type Boot =
   { state: "loading" } | { state: "error"; message: string } | ({ state: "ready" } & Booted);
@@ -115,6 +126,36 @@ export function App({ preloaded }: { preloaded?: Workspace }) {
   );
 }
 
+/** Shown for the moment a page's code is loading. */
+function PageSkeleton() {
+  return (
+    <div role="status" aria-label="Caricamento" className="space-y-4">
+      <div className="skeleton h-6 w-48" />
+      <div className="skeleton h-4 w-80" />
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="skeleton h-20" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Loads the pages' code while the app is idle, so that moving around feels instant. */
+function usePreloadPages(): void {
+  useEffect(() => {
+    const load = () => {
+      for (const page of PAGES) void page();
+    };
+    const idle = window.requestIdleCallback as ((cb: () => void) => number) | undefined;
+    const id = idle ? idle(load) : window.setTimeout(load, 1500);
+    return () => {
+      if (idle && window.cancelIdleCallback) window.cancelIdleCallback(id);
+      else window.clearTimeout(id);
+    };
+  }, []);
+}
+
 function Shell({ volatile }: { volatile: boolean }) {
   const ws = useWorkspace();
   const [route, go] = useRoute();
@@ -124,6 +165,8 @@ function Shell({ volatile }: { volatile: boolean }) {
   const company = useAsync(() => getCompany(ws.db), []);
   const sync = useSync();
   useTrayEvents(go, sync.syncNow);
+  usePreloadPages();
+  useEffect(() => trackVisibility(), []);
 
   const changeServerUrl = useCallback((url: string | null) => {
     saveServerUrl(url);
@@ -203,14 +246,19 @@ function Shell({ volatile }: { volatile: boolean }) {
             <button
               type="button"
               onClick={() => go("settings")}
-              className="shrink-0 rounded-lg bg-accent px-3 py-1 text-xs font-medium text-accent-contrast hover:bg-accent-strong"
+              className="shrink-0 rounded-lg bg-[image:var(--gradient-accent)] px-3 py-1 text-xs font-medium text-accent-contrast shadow-glow hover:brightness-110"
             >
               Completa ora
             </button>
           </div>
         ) : null}
         <main className="flex-1 overflow-y-auto px-8 py-8">
-          <Suspense fallback={<p className="text-sm text-muted">Caricamento…</p>}>{page}</Suspense>
+          <Suspense fallback={<PageSkeleton />}>
+            {/* A new key per screen replays the short entrance animation. */}
+            <div key={`${section}/${a}`} className="page-enter">
+              {page}
+            </div>
+          </Suspense>
         </main>
       </div>
     </div>

@@ -2,40 +2,53 @@
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
-/* Design tokens. Dark is the primary theme; light overrides the same variables. */
+/* Design tokens. Dark is the primary theme; light overrides the same variables.
+   Cool, slightly violet neutrals; one violet accent with a cyan partner for gradients. */
 :root,
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #0b0b0f;
-  --surface: #131318;
-  --surface-raised: #1a1a21;
-  --border: #26262f;
-  --text: #ededf2;
-  --text-muted: #9a9aa8;
-  --accent: #8b7cf6;
-  --accent-strong: #7463f0;
-  --accent-contrast: #0b0b0f;
-  --info: #5b9cf5;
-  --success: #3fcf8e;
-  --warning: #f0b23e;
-  --danger: #f2617a;
+  --bg: #0a0a14;
+  --surface: #11111f;
+  --surface-raised: #1a1a2c;
+  --border: #272741;
+  --text: #eeeef8;
+  --text-muted: #a4a4c0;
+  --accent: #9a85ff;
+  --accent-strong: #8069f8;
+  --accent-2: #4cc2ff;
+  --accent-contrast: #0b0a18;
+  --info: #5aa9ff;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --danger: #fb7185;
+  --gradient-accent: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 130%);
+  --elev-card: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 10px 28px -16px rgb(0 0 0 / 0.7);
+  --elev-pop: 0 18px 44px -12px rgb(0 0 0 / 0.65), 0 0 0 1px rgb(255 255 255 / 0.04);
+  --glow: 0 6px 20px -8px color-mix(in srgb, var(--accent) 70%, transparent);
+  --page-glow: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 :root[data-theme="light"] {
   color-scheme: light;
-  --bg: #f6f6f9;
+  --bg: #f3f3fb;
   --surface: #ffffff;
-  --surface-raised: #f0f0f5;
-  --border: #dcdce6;
-  --text: #15151c;
-  --text-muted: #5d5d6e;
-  --accent: #6250e0;
-  --accent-strong: #5140cc;
+  --surface-raised: #ecebf8;
+  --border: #d8d7ec;
+  --text: #15142a;
+  --text-muted: #56547a;
+  --accent: #5b43e6;
+  --accent-strong: #4a33d1;
+  --accent-2: #0a86d8;
   --accent-contrast: #ffffff;
-  --info: #2f6fd6;
-  --success: #15915a;
-  --warning: #a86a00;
-  --danger: #cc2f4d;
+  --info: #1f6fe0;
+  --success: #0f8a5f;
+  --warning: #9a5b00;
+  --danger: #cf2b4c;
+  --gradient-accent: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 140%);
+  --elev-card: 0 1px 2px rgb(21 20 42 / 0.05), 0 10px 26px -18px rgb(21 20 42 / 0.25);
+  --elev-pop: 0 18px 40px -14px rgb(21 20 42 / 0.3), 0 0 0 1px rgb(21 20 42 / 0.05);
+  --glow: 0 6px 18px -8px color-mix(in srgb, var(--accent) 55%, transparent);
+  --page-glow: color-mix(in srgb, var(--accent) 7%, transparent);
 }
 
 @theme inline {
@@ -52,6 +65,10 @@
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-danger: var(--danger);
+  --color-accent-2: var(--accent-2);
+  --shadow-card: var(--elev-card);
+  --shadow-pop: var(--elev-pop);
+  --shadow-glow: var(--glow);
   --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
 }
 
@@ -63,7 +80,8 @@ body,
 
 body {
   margin: 0;
-  background: var(--bg);
+  /* One static glow (never animated, never repainted on scroll). */
+  background: radial-gradient(900px 420px at 12% -8%, var(--page-glow), transparent 70%), var(--bg);
   color: var(--text);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
@@ -118,17 +136,138 @@ select:focus {
   scrollbar-color: var(--border) transparent;
 }
 
-main {
-  animation: page-in 0.18s ease-out;
+table {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Motion. Only opacity and transform are animated: cheap for the GPU, no layout work.
+   Everything is short, and switched off for people who asked the system for less motion. */
+:root {
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @keyframes page-in {
   from {
     opacity: 0;
-    transform: translateY(4px);
+    transform: translateY(6px);
+  }
+}
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.97);
+  }
+}
+@keyframes expand-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+@keyframes shimmer {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
   }
 }
 
-table {
-  font-variant-numeric: tabular-nums;
+.page-enter {
+  animation: page-in 220ms var(--ease-out) both;
+}
+.pop-in {
+  animation: pop-in 150ms var(--ease-out) both;
+  transform-origin: bottom center;
+}
+.expand-in {
+  animation: expand-in 180ms var(--ease-out) both;
+}
+
+/* The children of .stagger rise one after the other (cards, tiles). */
+.stagger > * {
+  animation: rise 360ms var(--ease-out) both;
+}
+.stagger > :nth-child(2) {
+  animation-delay: 30ms;
+}
+.stagger > :nth-child(3) {
+  animation-delay: 60ms;
+}
+.stagger > :nth-child(4) {
+  animation-delay: 90ms;
+}
+.stagger > :nth-child(5) {
+  animation-delay: 120ms;
+}
+.stagger > :nth-child(6) {
+  animation-delay: 150ms;
+}
+.stagger > :nth-child(7) {
+  animation-delay: 180ms;
+}
+.stagger > :nth-child(8) {
+  animation-delay: 210ms;
+}
+.stagger > :nth-child(n + 9) {
+  animation-delay: 240ms;
+}
+
+/* A tile that reacts to the pointer. */
+.lift {
+  transition:
+    transform 180ms var(--ease-out),
+    box-shadow 180ms var(--ease-out),
+    border-color 150ms ease;
+}
+.lift:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+}
+
+/* Placeholder while a page loads: a soft light sweeps across for the few moments it takes. */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface-raised);
+  border-radius: 0.5rem;
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--text) 7%, transparent),
+    transparent
+  );
+  animation: shimmer 1.3s ease-in-out infinite;
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* Battery: while the window is hidden (minimised, in the tray, another desktop) nothing animates. */
+html[data-hidden="true"] *,
+html[data-hidden="true"] *::before,
+html[data-hidden="true"] *::after {
+  animation-play-state: paused !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after {
+    animation: none;
+  }
+  .lift:hover,
+  button:active:not(:disabled) {
+    transform: none;
+  }
 }

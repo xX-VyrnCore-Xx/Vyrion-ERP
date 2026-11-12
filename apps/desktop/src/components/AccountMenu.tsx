@@ -102,7 +102,7 @@ export function AccountMenu({ connection, companyName, theme, onThemeChange, onN
           id={menuId}
           role="menu"
           aria-label="Account e profilo"
-          className="absolute inset-x-2 bottom-full z-20 mb-1 rounded-xl border border-line bg-surface p-1.5 shadow-xl shadow-black/30"
+          className="pop-in absolute inset-x-2 bottom-full z-20 mb-1 rounded-xl border border-line bg-surface p-1.5 shadow-pop"
         >
           <div className="flex items-center gap-2.5 px-2 pb-2 pt-1.5">
             <span className="grid size-8 shrink-0 place-items-center rounded-full bg-accent text-xs font-semibold text-accent-contrast">

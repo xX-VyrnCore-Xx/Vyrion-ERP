@@ -21,7 +21,7 @@ export function UpdateBanner() {
         <button
           type="button"
           onClick={() => void install()}
-          className="shrink-0 rounded-lg bg-accent px-3 py-1 text-xs font-medium text-accent-contrast hover:bg-accent-strong"
+          className="shrink-0 rounded-lg bg-[image:var(--gradient-accent)] px-3 py-1 text-xs font-medium text-accent-contrast shadow-glow hover:brightness-110"
         >
           Aggiorna ora
         </button>
@@ -46,7 +46,7 @@ export function UpdateBanner() {
         <button
           type="button"
           onClick={() => void restart()}
-          className="shrink-0 rounded-lg bg-accent px-3 py-1 text-xs font-medium text-accent-contrast hover:bg-accent-strong"
+          className="shrink-0 rounded-lg bg-[image:var(--gradient-accent)] px-3 py-1 text-xs font-medium text-accent-contrast shadow-glow hover:brightness-110"
         >
           Riavvia ora
         </button>
