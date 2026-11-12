@@ -27,13 +27,19 @@ export function parseMoney(input: string): Cents | null {
   return negative ? -cents : cents;
 }
 
-const formatter = new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" });
+const formatter = new Intl.NumberFormat("it-IT", {
+  style: "currency",
+  currency: "EUR",
+  // Italian locale data groups only from five digits; show 1.220,00 € everywhere.
+  useGrouping: true,
+});
 
 export function formatMoney(cents: Cents): string {
   return formatter.format(cents / 100);
 }
 
 const plainFormatter = new Intl.NumberFormat("it-IT", {
+  useGrouping: true,
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });

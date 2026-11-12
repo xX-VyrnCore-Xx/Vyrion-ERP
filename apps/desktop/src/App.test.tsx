@@ -119,7 +119,7 @@ describe("working offline", () => {
     await user.selectOptions(await screen.findByLabelText(/Anagrafica/), customer.id);
     await user.type(screen.getByLabelText("Descrizione riga 1"), "Consulenza");
     await user.type(screen.getByLabelText("Prezzo riga 1"), "1000,00");
-    expect((await screen.findAllByText(/1220,00/)).length).toBeGreaterThan(0); // total with 22% VAT
+    expect((await screen.findAllByText(/1\.220,00/)).length).toBeGreaterThan(0); // total with 22% VAT
 
     await user.click(screen.getByRole("button", { name: "Emetti" }));
     const dialog = await screen.findByRole("dialog", { hidden: true });

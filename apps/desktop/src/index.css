@@ -271,3 +271,8 @@ html[data-hidden="true"] *::after {
     transform: none;
   }
 }
+
+/* Tables: the row under the pointer is lightly highlighted, so long lists are easy to follow. */
+table tbody tr:hover > td {
+  background-color: color-mix(in srgb, var(--surface-raised) 55%, transparent);
+}

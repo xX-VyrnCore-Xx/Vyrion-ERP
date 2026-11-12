@@ -6,6 +6,7 @@ import { useAsync, useWorkspace } from "../app/context";
 import { ValidationError } from "../data/errors";
 import { COMPANY_FIELDS, getCompany, saveCompany } from "../modules/company";
 import { Field } from "../ui/Field";
+import { layoutFields } from "../ui/formLayout";
 import { ErrorNote } from "../ui/parts";
 
 /** The company that uses the app: name, legal form and — separately — the tax regime. */
@@ -59,9 +60,9 @@ function CompanyForm({
   return (
     <Card title="Azienda">
       <form onSubmit={(e) => void submit(e)} noValidate>
-        <div className="grid gap-4 sm:grid-cols-2">
-          {COMPANY_FIELDS.map((field) => (
-            <div key={field.name} className={field.type === "longtext" ? "sm:col-span-2" : ""}>
+        <div className="grid grid-cols-12 gap-x-4 gap-y-4">
+          {layoutFields(COMPANY_FIELDS).map(({ field, className }) => (
+            <div key={field.name} className={`min-w-0 ${className}`}>
               <Field
                 field={field}
                 value={values[field.name] ?? ""}

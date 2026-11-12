@@ -31,6 +31,8 @@ interface Props {
   theme: Theme;
   onThemeChange: (theme: Theme) => void;
   onNavigate: (to: string) => void;
+  /** Sidebar folded to icons: only the avatar is shown. */
+  compact?: boolean;
 }
 
 const ENTRIES: { to: string; label: string; hint: string; icon: LucideIcon }[] = [
@@ -68,7 +70,14 @@ export const initials = (name: string | null): string => {
 };
 
 /** Bottom of the sidebar: the profile, with the account, the software settings and the look. */
-export function AccountMenu({ connection, companyName, theme, onThemeChange, onNavigate }: Props) {
+export function AccountMenu({
+  connection,
+  companyName,
+  theme,
+  onThemeChange,
+  onNavigate,
+  compact = false,
+}: Props) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const menuId = useId();
@@ -102,7 +111,7 @@ export function AccountMenu({ connection, companyName, theme, onThemeChange, onN
           id={menuId}
           role="menu"
           aria-label="Account e profilo"
-          className="pop-in absolute inset-x-2 bottom-full z-20 mb-1 rounded-xl border border-line bg-surface p-1.5 shadow-pop"
+          className={`pop-in absolute bottom-full z-20 mb-1 rounded-xl border border-line bg-surface p-1.5 shadow-pop ${compact ? "left-2 w-64" : "inset-x-2"}`}
         >
           <div className="flex items-center gap-2.5 px-2 pb-2 pt-1.5">
             <span className="grid size-8 shrink-0 place-items-center rounded-full bg-accent text-xs font-semibold text-accent-contrast">
@@ -187,12 +196,19 @@ export function AccountMenu({ connection, companyName, theme, onThemeChange, onN
         aria-controls={open ? menuId : undefined}
         aria-label={`Account e profilo: ${name}`}
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left hover:bg-raised"
+        title={compact ? name : undefined}
+        className={`flex w-full items-center rounded-lg text-left hover:bg-raised ${compact ? "justify-center py-1.5" : "gap-2.5 px-2 py-1.5"}`}
       >
-        <span className="grid size-7 shrink-0 place-items-center rounded-full bg-accent text-[11px] font-semibold text-accent-contrast">
+        <span className="relative grid size-7 shrink-0 place-items-center rounded-full bg-accent text-[11px] font-semibold text-accent-contrast">
           {initials(companyName)}
+          {compact ? (
+            <span
+              aria-hidden="true"
+              className={`absolute -bottom-0.5 -right-0.5 size-2 rounded-full ring-2 ring-surface ${DOT[connection]}`}
+            />
+          ) : null}
         </span>
-        <span className="min-w-0 flex-1">
+        <span className={compact ? "sr-only" : "min-w-0 flex-1"}>
           <span className="block truncate text-[13px] font-medium leading-4 text-fg">{name}</span>
           <span
             role="status"
@@ -205,7 +221,9 @@ export function AccountMenu({ connection, companyName, theme, onThemeChange, onN
             <span className="truncate">{t.connection[connection]}</span>
           </span>
         </span>
-        <ChevronsUpDown aria-hidden="true" className="size-3.5 shrink-0 text-muted" />
+        {compact ? null : (
+          <ChevronsUpDown aria-hidden="true" className="size-3.5 shrink-0 text-muted" />
+        )}
       </button>
     </div>
   );

@@ -9,6 +9,9 @@ import { AppError, ValidationError, VersionConflictError } from "../data/errors"
 import { parseMoney } from "../lib/money";
 import { AttachmentsPanel } from "../ui/AttachmentsPanel";
 import { Field } from "../ui/Field";
+import { sectionsFor } from "../ui/formGroups";
+import { layoutFields } from "../ui/formLayout";
+import { formatDay } from "../ui/format";
 import { initialValues, type FormValues } from "../ui/format";
 import { HistoryPanel } from "../ui/HistoryPanel";
 import { ConfirmDialog, ErrorNote } from "../ui/parts";
@@ -209,62 +212,75 @@ function FormBody({
 
   const visible = def.fields.filter((f: FieldDef) => !f.hidden && !(f.readonly && !record));
   return (
-    <div className="grid max-w-5xl gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
-      <div>
-        <header className="mb-4 flex items-start justify-between gap-3">
-          <div>
-            <a href={href("e", def.key)} className="text-xs text-muted hover:text-accent">
-              ← {def.plural}
-            </a>
-            <h1 className="text-xl font-semibold tracking-tight text-fg">
-              {record ? def.title(record) : `Nuovo: ${def.label}`}
-            </h1>
-          </div>
-        </header>
-        {lockedReason ? (
-          <div className="mb-4 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning">
-            {lockedReason}
-          </div>
+    <div className="mx-auto w-full max-w-3xl">
+      <header className="mb-6">
+        <a href={href("e", def.key)} className="text-xs text-muted hover:text-accent">
+          ← {def.plural}
+        </a>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-fg">
+          {record ? def.title(record) : `Nuovo: ${def.label}`}
+        </h1>
+        <p className="mt-1 text-sm text-muted">
+          {record
+            ? `${def.label} · ultima modifica ${formatDay(record.updated_at.slice(0, 10))}`
+            : "Compila i dati e salva: potrai modificarli quando vuoi."}
+        </p>
+      </header>
+      {lockedReason ? (
+        <div className="mb-4 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning">
+          {lockedReason}
+        </div>
+      ) : null}
+      <form onSubmit={(e) => void submit(e)} noValidate className="flex flex-col gap-4">
+        {sectionsFor(def.key, visible).map((section) => (
+          <fieldset
+            key={section.title ?? "all"}
+            className="m-0 min-w-0 rounded-2xl border border-line bg-surface p-6 shadow-card"
+          >
+            <legend className="sr-only">{section.title ?? def.label}</legend>
+            <h2 aria-hidden="true" className="mb-4 text-sm font-semibold text-fg">
+              {section.title ?? "Dettagli"}
+            </h2>
+            <div className="grid grid-cols-12 gap-x-4 gap-y-4">
+              {layoutFields(section.fields).map(({ field, className }) => (
+                <div key={field.name} className={`min-w-0 ${className}`}>
+                  <Field
+                    field={field}
+                    value={values[field.name] ?? ""}
+                    onChange={(v) => setValues((s) => ({ ...s, [field.name]: v }))}
+                    error={errors[field.name]}
+                    disabled={Boolean(lockedReason)}
+                    choices={choices[field.name] ?? []}
+                  />
+                </div>
+              ))}
+            </div>
+          </fieldset>
+        ))}
+        <ErrorNote message={message} />
+        {saved ? (
+          <p role="status" className="text-sm text-success">
+            Salvato.
+          </p>
         ) : null}
-        <form onSubmit={(e) => void submit(e)} noValidate className="space-y-4">
-          <div className="grid gap-4 rounded-xl border border-line bg-surface p-5 sm:grid-cols-2">
-            {visible.map((field) => (
-              <div key={field.name} className={field.type === "longtext" ? "sm:col-span-2" : ""}>
-                <Field
-                  field={field}
-                  value={values[field.name] ?? ""}
-                  onChange={(v) => setValues((s) => ({ ...s, [field.name]: v }))}
-                  error={errors[field.name]}
-                  disabled={Boolean(lockedReason)}
-                  choices={choices[field.name] ?? []}
-                />
-              </div>
-            ))}
-          </div>
-          <ErrorNote message={message} />
-          {saved ? (
-            <p role="status" className="text-sm text-success">
-              Salvato.
-            </p>
+        <div className="sticky -bottom-8 z-10 -mx-3 flex flex-wrap items-center justify-end gap-2 rounded-t-xl border-t border-line bg-bg/90 px-3 py-3 backdrop-blur">
+          {record && !def.noDelete && !lockedReason ? (
+            <Button onClick={() => setConfirming(true)}>Elimina</Button>
           ) : null}
-          <div className="flex gap-2">
-            {!lockedReason ? (
-              <Button type="submit" variant="primary" disabled={busy}>
-                {record ? "Salva modifiche" : "Crea"}
-              </Button>
-            ) : null}
-            {record && !def.noDelete && !lockedReason ? (
-              <Button onClick={() => setConfirming(true)}>Elimina</Button>
-            ) : null}
-            <Button onClick={() => go(href("e", def.key))}>{record ? "Chiudi" : "Annulla"}</Button>
-          </div>
-        </form>
-      </div>
+          <span className="flex-1" />
+          <Button onClick={() => go(href("e", def.key))}>{record ? "Chiudi" : "Annulla"}</Button>
+          {!lockedReason ? (
+            <Button type="submit" variant="primary" disabled={busy}>
+              {record ? "Salva modifiche" : "Crea"}
+            </Button>
+          ) : null}
+        </div>
+      </form>
       {record ? (
-        <aside className="space-y-4">
+        <div className="mt-6 space-y-4">
           {related.data?.length ? (
             <Card title="Collegati">
-              <ul className="space-y-1 text-sm">
+              <ul className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
                 {related.data.map(({ entity, field, count }) => (
                   <li key={`${entity.key}.${field.name}`}>
                     <a
@@ -280,7 +296,7 @@ function FormBody({
           ) : null}
           {ATTACHABLE.has(def.key) ? <AttachmentsPanel entity={def.key} id={record.id} /> : null}
           <HistoryPanel entity={def.key} id={record.id} />
-        </aside>
+        </div>
       ) : null}
       {confirming ? (
         <ConfirmDialog
