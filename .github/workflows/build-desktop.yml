@@ -79,6 +79,8 @@ jobs:
       # Newer Git prints a long hint about the default branch name every time the checkout
       # initialises the repository; the repository's name for it is irrelevant here.
       - name: Silence Git's default-branch hint
+        # The job's default folder (apps/desktop) does not exist before the checkout.
+        working-directory: ${{ github.workspace }}
         run: git config --global advice.defaultBranchName false
       - uses: actions/checkout@v7
       # Automatic releases number themselves: the version is written into this build's
