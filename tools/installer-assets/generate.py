@@ -62,17 +62,25 @@ def mark(draw: ImageDraw.ImageDraw, box: tuple[int, int, int, int], fill=None) -
 
 def sidebar() -> None:
     """Welcome and finish pages of the Windows wizard: 164 x 314."""
-    img = gradient((164, 314))
-    d = ImageDraw.Draw(img)
-    # darken the lower part so the text stays readable
+    w, h = 164, 314
+    scale = 3
+    img = gradient((w * scale, h * scale))
     shade = Image.new("RGB", img.size, BG)
     mask = Image.linear_gradient("L").resize(img.size)
-    img = Image.composite(shade, img, mask.point(lambda v: int(v * 0.85)))
+    img = Image.composite(shade, img, mask.point(lambda v: int(v * 0.9)))
     d = ImageDraw.Draw(img)
-    mark(d, (40, 46, 124, 130))
-    d.text((82, 200), "Vyrion ERP", font=font(BOLD, 17), fill=TEXT, anchor="ma")
-    d.text((82, 226), "ERP · CRM · IT", font=font(FONTS, 11), fill=MUTED, anchor="ma")
-    d.text((82, 290), "VyrnCore Enterprises", font=font(FONTS, 9), fill=MUTED, anchor="ma")
+    S = lambda *v: tuple(int(x * scale) for x in v)  # noqa: E731
+    d = ImageDraw.Draw(img)
+    mark(d, S(42, 44, 122, 124))
+    d.text(S(82, 168), "Vyrion ERP", font=font(BOLD, 17 * scale), fill=TEXT, anchor="ma")
+    d.text(S(82, 192), "ERP \u00b7 CRM \u00b7 IT", font=font(FONTS, 11 * scale), fill=(200, 196, 235), anchor="ma")
+    # what it is, in three short lines
+    for i, line in enumerate(("Funziona anche offline", "Dati cifrati sul computer", "Server aziendale facoltativo")):
+        y = 226 + i * 17
+        d.ellipse(S(16, y - 2, 21, y + 3), fill=ACCENT_B)
+        d.text(S(27, y), line, font=font(FONTS, 9 * scale), fill=(214, 214, 228), anchor="lm")
+    d.text(S(82, 298), "VyrnCore Enterprises", font=font(FONTS, 9 * scale), fill=MUTED, anchor="ma")
+    img = img.resize((w, h), Image.LANCZOS)
     img.save(OUT / "sidebar.bmp", "BMP")
 
 
@@ -113,10 +121,11 @@ def dmg() -> None:
     left = (w - (28 + 12 + tw)) / 2
     mark(d, S(left, 26, left + 28, 54))
     d.text(S(left + 40, 40), title, font=f_title, fill=TEXT, anchor="lm")
+    d.text(S(w / 2, 66), "Trascina l'icona nella cartella Applicazioni", font=font(FONTS, 12 * scale), fill=MUTED, anchor="mm")
 
-    # plates behind the two icons (app at x=180, Applications at x=480; icon centre y=170)
+    # plates behind the two icons (app at x=180, Applications at x=480; icon centre y=174)
     for cx in (180, 480):
-        box = (cx - 95, 76, cx + 95, 256)
+        box = (cx - 95, 84, cx + 95, 264)
         top, bottom = (166, 154, 250), (128, 112, 241)
         grad = Image.new("RGB", (190 * scale, 180 * scale))
         gp = ImageDraw.Draw(grad)
@@ -129,14 +138,16 @@ def dmg() -> None:
         d = ImageDraw.Draw(img)
         d.rounded_rectangle(S(*box), radius=22 * scale, outline=(190, 181, 252), width=scale)
 
-    # dashed arrow between the plates
-    y = 160
-    x = 292
-    while x < 372:
-        d.line(S(x, y, x + 12, y), fill=ACCENT_B, width=4 * scale)
-        x += 20
-    d.polygon([S(376, y - 14), S(404, y), S(376, y + 14)], fill=ACCENT_B)
-    d.text(S(330, y - 26), "trascina", font=font(FONTS, 12 * scale), fill=MUTED, anchor="mm")
+    # arrow between the plates, centred on the icon row (icon centre y=174)
+    y = 174
+    d = ImageDraw.Draw(img)
+    x = 286
+    for i in range(5):  # fading dashes lead the eye to the head
+        shade = tuple(round(c * (0.45 + 0.11 * i)) for c in ACCENT_B)
+        d.rounded_rectangle(S(x, y - 3, x + 10, y + 3), radius=3 * scale, fill=shade)
+        x += 15
+    d.polygon([S(361, y - 14), S(383, y), S(361, y + 14)], fill=ACCENT_B)
+    d.text(S(330, y - 30), "trascina", font=font(BOLD, 12 * scale), fill=(190, 196, 230), anchor="mm")
 
     # steps panel
     d.rounded_rectangle(S(28, 282, 632, 384), radius=14 * scale, fill=(20, 20, 27), outline=(44, 44, 56), width=scale)

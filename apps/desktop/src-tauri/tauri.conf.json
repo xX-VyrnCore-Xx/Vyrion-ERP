@@ -75,11 +75,11 @@
         },
         "appPosition": {
           "x": 180,
-          "y": 160
+          "y": 174
         },
         "applicationFolderPosition": {
           "x": 480,
-          "y": 160
+          "y": 174
         },
         "background": "installer/dmg-background.png"
       },
