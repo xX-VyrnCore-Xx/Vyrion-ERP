@@ -14,7 +14,7 @@ documentata**. Nessuna funzione viene mostrata nell'interfaccia prima di avere u
 | 7 | Moduli ERP | Pianificata |
 | 8 | Moduli CRM | Pianificata |
 | 9 | Moduli IT | Pianificata |
-| 10 | Backup e infrastruttura | Pianificata |
+| 10 | Backup e infrastruttura | ✅ Completata (database; vedi limiti in BACKUP.md) |
 | 11 | Test e ottimizzazione | Pianificata |
 | 12 | Build e release | Pianificata |
 

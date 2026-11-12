@@ -123,7 +123,12 @@ Eseguire un backup del database prima di ogni aggiornamento che contiene migrazi
 
 `docker compose down -v` **elimina i volumi, quindi il database**: non usarlo in produzione.
 
+## Backup
+
+Il servizio `backup` fa parte dello stack e richiede `BACKUP_AGE_RECIPIENT` in `infra/.env`
+(chiave **pubblica** `age`; la privata resta offline). Configurazione, ripristino e prova di
+ripristino in [BACKUP.md](BACKUP.md).
+
 ## Non ancora automatizzato
 
-Backup, monitoraggio, montaggio del NAS e servizi di sincronizzazione e gestione documentale
-arrivano con le milestone 6 e 10. Fino ad allora il backup del database va eseguito manualmente.
+Monitoraggio con avvisi esterni e montaggio del NAS.

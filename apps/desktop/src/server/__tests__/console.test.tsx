@@ -78,6 +78,60 @@ describe("server console", () => {
   });
 });
 
+describe("backups pane", () => {
+  it("shows the real outcome of the backup service, including a failure", async () => {
+    const run = (kind: string, ok: boolean, error: string | null) => ({
+      kind,
+      ok,
+      file: "daily/vyrion-1.dump.age",
+      size_bytes: 2048,
+      sha256: "a".repeat(64),
+      started_at: "2026-11-12T02:30:00Z",
+      finished_at: "2026-11-12T02:31:00Z",
+      error,
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) => {
+        if (url.endsWith("/health/ready"))
+          return json({ status: "ok", version: "1", components: {} });
+        if (url.includes("/sync/pull"))
+          return json({ changes: [], cursor: 0, has_more: false, server_time: "x" });
+        if (url.includes("/sync/push")) return json({ results: [] });
+        if (url.endsWith("/backups"))
+          return json({
+            configured: true,
+            last_backup: run("backup", false, "disco pieno"),
+            last_verify: run("verify", true, null),
+            last_restore_test: null,
+            stale: true,
+            stale_after_hours: 36,
+            runs: [run("backup", false, "disco pieno")],
+            files: [
+              {
+                name: "vyrion-1.dump.age",
+                tier: "daily",
+                size_bytes: 2048,
+                modified_at: "2026-11-12T02:31:00Z",
+              },
+            ],
+          });
+        return json({}, 404);
+      }),
+    );
+    const ws = await testWorkspace();
+    await setSetting(ws.db, "sync.session", session, ws.ctx.now());
+    window.location.hash = "#/server/backup";
+    render(<App preloaded={ws} />);
+    expect(
+      await screen.findByText(/Nessun backup riuscito nelle ultime 36 ore/),
+    ).toBeInTheDocument();
+    expect((await screen.findAllByText("disco pieno")).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Mai eseguita/)).toBeInTheDocument();
+    expect(screen.getByText("vyrion-1.dump.age")).toBeInTheDocument();
+  });
+});
+
 describe("coming back online", () => {
   it("retries at once when the network returns and sends what waited", async () => {
     let online = false;

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 
 from app.api.deps import rate_limit_ip
-from app.api.v1 import audit_log, auth, company, health, roles, sync, users
+from app.api.v1 import audit_log, auth, backups, company, health, roles, sync, users
 
 api_router = APIRouter(prefix="/api/v1")
 
@@ -9,6 +9,6 @@ api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(health.router)
 
 _limited = APIRouter(dependencies=[Depends(rate_limit_ip)])
-for module in (auth, users, roles, company, audit_log, sync):
+for module in (auth, users, roles, company, audit_log, backups, sync):
     _limited.include_router(module.router)
 api_router.include_router(_limited)

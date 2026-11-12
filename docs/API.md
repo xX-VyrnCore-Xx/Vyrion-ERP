@@ -89,6 +89,9 @@ Ogni percorso richiede il permesso indicato. Le regole che dipendono da *chi* ag
 | `PUT /company` | `core.company:update` | Senza `version` crea, con `version` aggiorna |
 | `GET /audit-log` | `core.audit_log:view` | Più recenti per primi; filtri `entity_type`, `entity_id`, `actor_user_id`, `action`, `since`, `until` |
 
+| `GET /backups` | `core.backups:view` | Ultimi backup, controlli e prove di ripristino letti dal registro reale del servizio `backup`; file conservati; `stale` se manca un backup riuscito da oltre 36 ore |
+| `GET /sync/status` | `core.sync:view` | Record, modifiche registrate e dispositivi che hanno inviato dati |
+
 Il registro di audit non ha percorsi di scrittura: `POST`, `PUT`, `PATCH` e `DELETE` danno `405`.
 
 ## Salute del server

@@ -50,6 +50,35 @@ services:
       VYRION_REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       # Fernet key(s) protecting stored secrets (2FA seeds). Comma-separated; first one encrypts.
       VYRION_ENCRYPTION_KEYS: ${ENCRYPTION_KEYS:?required}
+      VYRION_BACKUP_DIR: /backups
+    volumes:
+      # Read-only: the API can show the backups but never alter or delete them.
+      - backups:/backups:ro
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    networks: [internal]
+
+  backup:
+    build: ./backup
+    image: vyrion-backup:${VYRION_VERSION:-dev}
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+    environment:
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB}
+      # Public key only: the private key stays offline, so a stolen backup is unreadable.
+      BACKUP_AGE_RECIPIENT: ${BACKUP_AGE_RECIPIENT:?required (age public key, see docs/BACKUP.md)}
+      BACKUP_AT: ${BACKUP_AT:-02:30}
+      BACKUP_COPY_DIR: ${BACKUP_COPY_DIR:-}
+    volumes:
+      - backups:/backups
+      # Optional second destination. Point BACKUP_COPY_PATH at another disk or share.
+      - ${BACKUP_COPY_PATH:-backup_copy}:${BACKUP_COPY_DIR:-/backup-copy}
     read_only: true
     tmpfs: [/tmp]
     cap_drop: [ALL]
@@ -76,6 +105,8 @@ volumes:
   redis_data:
   caddy_data:
   caddy_config:
+  backups:
+  backup_copy:
 
 networks:
   internal:

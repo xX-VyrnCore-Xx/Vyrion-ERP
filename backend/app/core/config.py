@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     # Seconds allowed to each dependency probe of the readiness endpoint.
     health_check_timeout: float = Field(default=2.0, gt=0, le=30)
 
+    # Where the backup service writes its run log (mounted read-only into this container).
+    backup_dir: str = "/backups"
+
     # --- Sessions -----------------------------------------------------------------
     access_token_ttl_seconds: int = Field(default=15 * 60, ge=60, le=3600)
     refresh_token_ttl_seconds: int = Field(default=14 * 24 * 3600, ge=3600)

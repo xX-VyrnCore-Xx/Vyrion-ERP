@@ -120,6 +120,39 @@ jobs:
           tool: cargo-audit
       - run: cargo audit
 
+  backup:
+    name: Backup scripts (lint, end-to-end on PostgreSQL)
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: vyrion_backup_test
+          POSTGRES_USER: vyrion
+          POSTGRES_PASSWORD: ci-only-password
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U vyrion -d vyrion_backup_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install age and the PostgreSQL 18 client
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq age jq postgresql-client-18
+      - name: Shell lint
+        run: shellcheck -x -S warning infra/backup/*.sh
+      - name: Backup, verify, tamper, restore (real PostgreSQL)
+        env:
+          PGHOST: 127.0.0.1
+          PGUSER: vyrion
+          PGPASSWORD: ci-only-password
+          PGDATABASE: vyrion_backup_test
+        run: infra/backup/test.sh
+
   infra:
     name: Server stack (Compose config, image build)
     runs-on: ubuntu-24.04
@@ -130,3 +163,5 @@ jobs:
         run: docker compose --env-file .env.example config --quiet
       - name: Build backend image
         run: docker build --tag vyrion-backend:ci backend
+      - name: Build backup image
+        run: docker build --tag vyrion-backup:ci infra/backup
