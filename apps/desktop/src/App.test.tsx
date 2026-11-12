@@ -23,6 +23,12 @@ const READY = {
   components: { database: { status: "ok", latency_ms: 2 }, redis: { status: "ok", latency_ms: 1 } },
 };
 
+/** Opens the account menu at the bottom of the sidebar and picks an entry. */
+async function openSettings(user: ReturnType<typeof userEvent.setup>, entry: string) {
+  await user.click(await screen.findByRole("button", { name: /^Account e profilo/ }));
+  await user.click(await screen.findByRole("menuitem", { name: new RegExp(entry) }));
+}
+
 const companyForm = (): HTMLElement => {
   const form = screen.getByLabelText(/Ragione sociale/).closest("form");
   if (!form) throw new Error("company form not found");
@@ -43,7 +49,7 @@ describe("first run", () => {
     const user = userEvent.setup();
     render(<App preloaded={ws} />);
     expect(await screen.findByText(/Puoi usare subito tutti i moduli/)).toBeInTheDocument();
-    expect(screen.getAllByText("Solo locale (nessun server)").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Solo locale").length).toBeGreaterThan(0);
 
     await user.click(screen.getByRole("button", { name: "Completa ora" }));
     await user.type(await screen.findByLabelText(/Ragione sociale/), "VyrnCore Srl");
@@ -139,7 +145,7 @@ describe("optional server link", () => {
     const ws = await testWorkspace();
     const user = userEvent.setup();
     render(<App preloaded={ws} />);
-    await user.click(await screen.findByRole("link", { name: "Impostazioni" }));
+    await openSettings(user, "Account e server");
     await user.type(
       await screen.findByLabelText("Indirizzo del server"),
       "http://erp.vyrncore.lan",
@@ -158,7 +164,7 @@ describe("optional server link", () => {
     const ws = await testWorkspace();
     const user = userEvent.setup();
     render(<App preloaded={ws} />);
-    await user.click(await screen.findByRole("link", { name: "Impostazioni" }));
+    await openSettings(user, "Account e server");
     await user.type(
       await screen.findByLabelText("Indirizzo del server"),
       "https://erp.vyrncore.lan/",
@@ -184,7 +190,7 @@ describe("optional server link", () => {
     const ws = await testWorkspace();
     const user = userEvent.setup();
     render(<App preloaded={ws} />);
-    await user.click(await screen.findByRole("link", { name: "Impostazioni" }));
+    await openSettings(user, "Impostazioni software");
     await user.click(await screen.findByRole("radio", { name: "Chiaro" }));
     expect(document.documentElement.dataset.theme).toBe("light");
     expect(localStorage.getItem("vyrion.theme")).toBe("light");

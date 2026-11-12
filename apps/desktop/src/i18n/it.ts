@@ -3,7 +3,7 @@ export const it = {
   appName: "Vyrion ERP",
   nav: { label: "Navigazione principale", status: "Stato del sistema", settings: "Impostazioni" },
   connection: {
-    unconfigured: "Solo locale (nessun server)",
+    unconfigured: "Solo locale",
     checking: "Verifica in corso",
     online: "Connesso",
     degraded: "Server degradato",

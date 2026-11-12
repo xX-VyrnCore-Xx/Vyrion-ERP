@@ -167,13 +167,22 @@ function Shell({ volatile }: { volatile: boolean }) {
         onServerUrlChange={changeServerUrl}
         theme={theme}
         onThemeChange={setTheme}
+        section={a}
+        go={go}
       />
     );
   else page = <p className="text-sm text-muted">Pagina non trovata.</p>;
 
   return (
     <div className="flex h-full">
-      <Sidebar path={path} onNavigate={go} connection={status.state} />
+      <Sidebar
+        place={{ path, query: route.query }}
+        onNavigate={go}
+        connection={status.state}
+        companyName={company.data?.name ?? null}
+        theme={theme}
+        onThemeChange={setTheme}
+      />
       <div className="flex min-w-0 flex-1 flex-col">
         {volatile ? (
           <div role="status" className="bg-warning/15 px-8 py-1.5 text-xs text-warning">
