@@ -31,6 +31,8 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ### Changed
 
+- Strumenti di build: pnpm 10 → 11 (`packageManager` in `apps/desktop/package.json`; il lockfile resta compatibile). Installazione pulita, controllo del formato, tipi, lint, 204 test e build verificati con pnpm 11.
+
 - Il riepilogo IVA del periodo somma l'IVA dei singoli documenti (come i registri) invece di
   ricalcolarla sulla base aggregata, così i due coincidono al centesimo.
 
