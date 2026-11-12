@@ -43,6 +43,10 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ### Changed
 
+- **Barra laterale rinnovata**: può ridursi a sole icone (pulsante in alto o Ctrl/Cmd+B, scelta ricordata) con nome
+  e suggerimento su ogni icona; indicatore laterale sull'elemento attivo, puntino colorato per CRM, ERP e IT,
+  spaziatura più ariosa e larghezza maggiore. CRM, ERP e IT restano sempre aperti: si chiudono solo i sottomenu.
+
 - Strumenti di build: pnpm 10 → 11 (`packageManager` in `apps/desktop/package.json`; il lockfile resta compatibile). Installazione pulita, controllo del formato, tipi, lint, 204 test e build verificati con pnpm 11.
 
 - Il riepilogo IVA del periodo somma l'IVA dei singoli documenti (come i registri) invece di

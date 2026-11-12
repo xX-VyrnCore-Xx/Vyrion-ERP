@@ -137,3 +137,36 @@ describe("AccountMenu", () => {
     expect(initials(null)).toBe("VE");
   });
 });
+
+describe("Sidebar folded to icons", () => {
+  it("folds with the button, keeps every page reachable by its name, and remembers it", async () => {
+    const user = userEvent.setup();
+    const go = vi.fn();
+    const { unmount } = show(place(""), go);
+    await user.click(screen.getByRole("button", { name: "Riduci la barra laterale" }));
+    expect(document.querySelector("aside")?.getAttribute("data-collapsed")).toBe("true");
+    // no visible text, but the links keep their accessible name and a tooltip
+    const link = screen.getByRole("link", { name: "Documenti" });
+    expect(link).toHaveAttribute("title", "Documenti");
+    await user.click(link);
+    expect(go).toHaveBeenCalledWith("documents");
+    // the groups stay (as separators) and no sub-menu is offered while folded
+    expect(screen.queryByRole("heading", { name: "CRM" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /sottomenu/i })).not.toBeInTheDocument();
+    unmount();
+    // remembered on the next start
+    show(place(""));
+    expect(document.querySelector("aside")?.getAttribute("data-collapsed")).toBe("true");
+    await user.click(screen.getByRole("button", { name: "Espandi la barra laterale" }));
+    expect(screen.getByRole("heading", { name: "CRM" })).toBeInTheDocument();
+  });
+
+  it("toggles with Ctrl+B", async () => {
+    const user = userEvent.setup();
+    show(place(""));
+    await user.keyboard("{Control>}b{/Control}");
+    expect(document.querySelector("aside")?.getAttribute("data-collapsed")).toBe("true");
+    await user.keyboard("{Control>}b{/Control}");
+    expect(document.querySelector("aside")?.getAttribute("data-collapsed")).toBe("false");
+  });
+});
