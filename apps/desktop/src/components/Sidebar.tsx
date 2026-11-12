@@ -111,7 +111,7 @@ export function Sidebar({
         {open ? (
           <ul
             aria-label={`Sottomenu ${item.label}`}
-            className="mb-0.5 ml-[15px] mt-0.5 space-y-px border-l border-line pl-1.5"
+            className="expand-in mb-0.5 ml-[15px] mt-0.5 space-y-px border-l border-line pl-1.5"
           >
             {item.children?.map((child) => {
               const active = isHere(child.to, place, child.match, child.fallback);

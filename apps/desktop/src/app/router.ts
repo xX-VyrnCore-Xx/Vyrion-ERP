@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { startTransition, useCallback, useEffect, useState } from "react";
 
 export interface Route {
   path: string[];
@@ -20,7 +20,8 @@ export const href = (...segments: string[]): string =>
 export function useRoute(): [Route, (to: string) => void] {
   const [hash, setHash] = useState(() => window.location.hash);
   useEffect(() => {
-    const listener = () => setHash(window.location.hash);
+    // A transition keeps the current page (and the typing) responsive while the next one loads.
+    const listener = () => startTransition(() => setHash(window.location.hash));
     window.addEventListener("hashchange", listener);
     return () => window.removeEventListener("hashchange", listener);
   }, []);

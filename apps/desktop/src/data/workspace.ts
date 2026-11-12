@@ -1,4 +1,5 @@
 import type { Database, SqlRunner } from "./db";
+import { whenVisible } from "../lib/visibility";
 import type { Ctx, EntityDef, Rec } from "./entity";
 import { runMigrations, type Migration } from "./migrations";
 import { Registry } from "./registry";
@@ -6,6 +7,9 @@ import { EntityRepository, type ListOptions, type Page } from "./repository";
 import { SYSTEM_MIGRATION, getSetting, setSetting } from "./system";
 import { todayLocal } from "../lib/dates";
 import { uuidv7 } from "../lib/ids";
+
+/** Writes closer together than this make a single refresh of the screens. */
+const NOTIFY_WINDOW_MS = 16;
 
 export interface WorkspaceOptions {
   db: Database;
@@ -56,9 +60,27 @@ export class Workspace {
 
   getRevision = (): number => this.revision;
 
+  private notifyScheduled = false;
+
+  /**
+   * Counts the change now, tells the screens once: many writes in the same frame make one
+   * refresh, and while the window is hidden the refresh waits until it is seen again.
+   */
   private changed<T>(value: T): T {
     this.revision++;
-    for (const listener of this.listeners) listener();
+    if (!this.notifyScheduled) {
+      this.notifyScheduled = true;
+      // One frame (16 ms): imperceptible, and a burst of writes (an import, a sync pull)
+      // refreshes the screens once instead of once per record.
+      setTimeout(
+        () =>
+          whenVisible(() => {
+            this.notifyScheduled = false;
+            for (const listener of this.listeners) listener();
+          }),
+        NOTIFY_WINDOW_MS,
+      );
+    }
     return value;
   }
 

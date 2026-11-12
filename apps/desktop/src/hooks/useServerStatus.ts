@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { nextDelay } from "../lib/backoff";
 import { fetchReadiness, type ComponentState } from "../lib/health";
+import { whenVisible } from "../lib/visibility";
 
 export type ConnectionState = "unconfigured" | "checking" | "online" | "degraded" | "offline";
 
@@ -38,6 +39,7 @@ export function useServerStatus(serverUrl: string | null): ServerStatus {
     let timer: ReturnType<typeof setTimeout> | undefined;
     let failures = 0;
     let running = false;
+    let cancelWait: () => void = () => undefined;
 
     const probe = async () => {
       if (running || controller.signal.aborted) return;
@@ -56,7 +58,14 @@ export function useServerStatus(serverUrl: string | null): ServerStatus {
         lastCheckedAt: new Date(),
         url: serverUrl,
       });
-      timer = setTimeout(() => void probe(), nextDelay(reachable, failures));
+      // Nobody is looking while the window is hidden: wait for it to come back instead of
+      // waking the network and the CPU every few seconds.
+      timer = setTimeout(
+        () => {
+          cancelWait = whenVisible(() => void probe());
+        },
+        nextDelay(reachable, failures),
+      );
     };
 
     trigger.current = () => void probe();
@@ -68,6 +77,7 @@ export function useServerStatus(serverUrl: string | null): ServerStatus {
     return () => {
       controller.abort();
       clearTimeout(timer);
+      cancelWait();
       window.removeEventListener("online", onNetworkChange);
       window.removeEventListener("focus", onNetworkChange);
       trigger.current = () => {};
