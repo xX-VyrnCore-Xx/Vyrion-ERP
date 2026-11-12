@@ -1,6 +1,8 @@
 import { useState } from "react";
 
 import { Button } from "../components/Button";
+import { buildDocumentPdf } from "../modules/documentPdf";
+import { saveText } from "../ui/saveText";
 import { Card } from "../components/Card";
 import { useAsync, useWorkspace } from "../app/context";
 import { href } from "../app/router";
@@ -238,6 +240,17 @@ function EditorBody({ type, data, go }: { type: string; data: Data; go: (to: str
       saveDocument(tx, ctx, repo, { ...(doc ? { id: doc.id } : {}), header, lines: parsed.inputs }),
     );
     return saved;
+  };
+
+  const downloadPdf = async () => {
+    if (!doc) return;
+    setMessage(null);
+    try {
+      const pdf = await buildDocumentPdf(ws, doc.id);
+      await saveText(pdf.fileName, pdf.content, "application/pdf");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error));
+    }
   };
 
   const onSave = () =>
@@ -583,6 +596,11 @@ function EditorBody({ type, data, go }: { type: string; data: Data; go: (to: str
               onClick={() => void onSave()}
             >
               {doc ? "Salva" : "Salva bozza"}
+            </Button>
+          ) : null}
+          {doc ? (
+            <Button disabled={busy} onClick={() => void downloadPdf()}>
+              Scarica PDF
             </Button>
           ) : null}
           {fiscal && !locked ? (
