@@ -7,6 +7,11 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ### Changed
 
+- **Firma di entrambe le build, senza certificati.** L'installer Windows ora ha una firma
+  Authenticode da un certificato autofirmato creato dalla CI (editore «VyrnCore Enterprises»,
+  controllato a ogni build) e l'immagine disco macOS viene firmata «ad hoc» come l'app. Windows e
+  Apple non si fidano di queste firme: gli avvisi restano finché non si usano certificati
+  acquistati (vedi `docs/RELEASING.md`).
 - **Configurazione dell'azienda in un secondo momento.** All'avvio non c'è più la schermata
   obbligatoria: tutti i moduli sono subito utilizzabili e un avviso (con «Completa ora») ricorda
   di inserire i dati aziendali, necessari solo per emettere documenti.
