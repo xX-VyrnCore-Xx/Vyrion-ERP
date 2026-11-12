@@ -11,7 +11,14 @@ import { A4, Pdf } from "../lib/pdf";
 import { formatMoney } from "../lib/money";
 import { formatDay } from "../ui/format";
 import { getCompany } from "./company";
-import { DOC_STATUS, DOC_TYPES, computeTotals, isFiscal, type DocType } from "./documents";
+import {
+  DOC_STATUS,
+  DOC_TYPES,
+  computeTotals,
+  extrasFromRecord,
+  isFiscal,
+  type DocType,
+} from "./documents";
 
 const MARGIN = 42;
 const RIGHT = A4.width - MARGIN;
@@ -55,6 +62,7 @@ export async function buildDocumentPdf(ws: Workspace, documentId: string): Promi
       vat_nature: (l["vat_nature"] as string | null) ?? null,
     })),
     regime,
+    extrasFromRecord(doc),
   );
 
   const pdf = new Pdf();
@@ -211,6 +219,12 @@ export async function buildDocumentPdf(ws: Workspace, documentId: string): Promi
 
   // --- totals ---
   const rows: [string, string, boolean][] = [["Imponibile", formatMoney(totals.net), false]];
+  if (totals.cassa > 0)
+    rows.push([
+      `Cassa previdenziale ${pct(Number(doc["cassa_rate"]))}`,
+      formatMoney(totals.cassa),
+      false,
+    ]);
   for (const b of totals.breakdown)
     rows.push([
       b.rate === 0
@@ -220,10 +234,32 @@ export async function buildDocumentPdf(ws: Workspace, documentId: string): Promi
       false,
     ]);
   if (totals.stamp > 0) rows.push(["Imposta di bollo", formatMoney(totals.stamp), false]);
-  rows.push(["TOTALE", formatMoney(totals.total), true]);
+  rows.push([
+    totals.payable !== totals.total ? "TOTALE DOCUMENTO" : "TOTALE",
+    formatMoney(totals.total),
+    totals.payable === totals.total,
+  ]);
+  if (totals.withholding > 0)
+    rows.push([
+      `Ritenuta d'acconto ${pct(Number(doc["withholding_rate"]))}`,
+      `- ${formatMoney(totals.withholding)}`,
+      false,
+    ]);
+  if (totals.splitVat > 0)
+    rows.push([
+      "IVA versata dall'ente (split payment)",
+      `- ${formatMoney(totals.splitVat)}`,
+      false,
+    ]);
+  if (totals.payable !== totals.total)
+    rows.push([
+      type === "purchase_invoice" ? "NETTO DA PAGARE" : "NETTO DA INCASSARE",
+      formatMoney(totals.payable),
+      true,
+    ]);
   ensure(rows.length * 15 + 40);
   y -= 14;
-  const labelX = 380;
+  const labelX = 330;
   for (const [name, value, strong] of rows) {
     if (strong) pdf.rect(labelX - 8, y - 6, RIGHT - labelX + 8, 20, 0.9);
     pdf.text(labelX, y, name, { size: strong ? 11 : 9, bold: strong });
@@ -235,6 +271,11 @@ export async function buildDocumentPdf(ws: Workspace, documentId: string): Promi
   const notes: string[] = [];
   if (regime === "forfettario" && isFiscal(type)) notes.push(FORFETTARIO_NOTE);
   if (totals.stamp > 0) notes.push("Imposta di bollo assolta in modo virtuale, ove dovuta.");
+  if (totals.splitVat > 0)
+    notes.push(
+      "Operazione soggetta a scissione dei pagamenti ai sensi dell'art. 17-ter del DPR 633/1972: l'IVA è versata dal committente.",
+    );
+  if (totals.withholding > 0) notes.push("Operazione soggetta a ritenuta d'acconto.");
   if (doc["notes"]) notes.push(String(doc["notes"]));
   if (isFiscal(type) && doc["due_date"])
     notes.push(`Scadenza pagamento: ${formatDay(String(doc["due_date"]))}`);

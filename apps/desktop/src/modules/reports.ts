@@ -1,6 +1,7 @@
 import type { SqlRunner } from "../data/db";
 import { daysBetween } from "../lib/dates";
 import { percentOf } from "../lib/money";
+import { computeTotals, extrasFromRecord } from "./documents";
 import { productCosts, valueOf } from "./stock";
 
 export interface TrialBalanceRow {
@@ -72,51 +73,148 @@ export interface VatSummary {
   salesVat: number;
   purchaseBase: number;
   purchaseVat: number;
+  /** VAT on sales under split payment: paid by the customer to the tax authority, not owed by us. */
+  splitVat: number;
   /** Positive: VAT to pay; negative: VAT credit. */
   balance: number;
-  rows: { direction: "sales" | "purchases"; rate: number; base: number; vat: number }[];
+  rows: {
+    direction: "sales" | "purchases";
+    rate: number;
+    base: number;
+    vat: number;
+    split?: boolean;
+  }[];
 }
 
 /**
- * VAT on issued documents of the period, per rate. Credit notes subtract. This is a
- * working summary for the periodic settlement, not the filed return.
+ * VAT on issued documents of the period, per rate, on the taxable base including the cassa
+ * previdenziale. Credit notes subtract. Sales under split payment are listed apart and left out
+ * of the balance. This is a working summary for the periodic settlement, not the filed return.
  */
 export async function vatSummary(db: SqlRunner, from: string, to: string): Promise<VatSummary> {
-  const lines = await db.query<{ type: string; rate: number; base: number }>(
-    `SELECT d.type AS type, l.vat_rate AS rate, SUM(l.net_amount) AS base
-     FROM document_lines l JOIN documents d ON d.id = l.document_id
-     WHERE d.status = 'issued' AND d.deleted_at IS NULL AND l.deleted_at IS NULL
-       AND d.date >= ? AND d.date <= ? AND d.type IN ('invoice', 'credit_note', 'purchase_invoice')
-     GROUP BY d.type, l.vat_rate`,
+  const docs = await db.query<Record<string, string | number | null>>(
+    `SELECT * FROM documents d
+     WHERE d.status = 'issued' AND d.deleted_at IS NULL AND d.date >= ? AND d.date <= ?
+       AND d.type IN ('invoice', 'credit_note', 'purchase_invoice')`,
     [from, to],
   );
   const bucket = new Map<
     string,
-    { direction: "sales" | "purchases"; rate: number; base: number }
+    { direction: "sales" | "purchases"; rate: number; base: number; split: boolean }
   >();
-  for (const line of lines) {
-    const direction = line.type === "purchase_invoice" ? "purchases" : "sales";
-    const sign = line.type === "credit_note" ? -1 : 1;
-    const key = `${direction}|${line.rate}`;
-    const entry = bucket.get(key) ?? { direction, rate: Number(line.rate), base: 0 };
-    entry.base += sign * Number(line.base);
-    bucket.set(key, entry);
+  for (const doc of docs) {
+    const lines = await db.query<{
+      quantity: number;
+      unit_price: number;
+      discount: number | null;
+      vat_rate: number;
+      vat_nature: string | null;
+    }>(
+      "SELECT quantity, unit_price, discount, vat_rate, vat_nature FROM document_lines WHERE document_id = ? AND deleted_at IS NULL",
+      [String(doc["id"])],
+    );
+    const totals = computeTotals(
+      lines.map((l) => ({
+        quantity: Number(l.quantity),
+        unit_price: Number(l.unit_price),
+        discount: Number(l.discount ?? 0),
+        vat_rate: Number(l.vat_rate),
+        vat_nature: l.vat_nature,
+      })),
+      (doc["tax_regime"] as "forfettario" | "ordinario") ?? "ordinario",
+      extrasFromRecord(doc),
+    );
+    const direction = doc["type"] === "purchase_invoice" ? "purchases" : "sales";
+    const sign = doc["type"] === "credit_note" ? -1 : 1;
+    const split = direction === "sales" && Boolean(doc["split_payment"]);
+    for (const group of totals.breakdown) {
+      const key = `${direction}|${group.rate}|${split}`;
+      const entry = bucket.get(key) ?? { direction, rate: group.rate, base: 0, split };
+      entry.base += sign * group.base;
+      bucket.set(key, entry);
+    }
   }
   const rows = [...bucket.values()]
     .map((r) => ({ ...r, vat: percentOf(r.base, r.rate) }))
-    .sort((a, b) => a.direction.localeCompare(b.direction) || b.rate - a.rate);
-  const sum = (direction: string, field: "base" | "vat") =>
-    rows.filter((r) => r.direction === direction).reduce((s, r) => s + r[field], 0);
+    .sort(
+      (a, b) =>
+        a.direction.localeCompare(b.direction) ||
+        Number(a.split) - Number(b.split) ||
+        b.rate - a.rate,
+    );
+  const sum = (direction: string, field: "base" | "vat", split = false) =>
+    rows
+      .filter((r) => r.direction === direction && r.split === split)
+      .reduce((s, r) => s + r[field], 0);
   const salesVat = sum("sales", "vat");
   const purchaseVat = sum("purchases", "vat");
   return {
-    salesBase: sum("sales", "base"),
+    salesBase: sum("sales", "base") + sum("sales", "base", true),
     salesVat,
     purchaseBase: sum("purchases", "base"),
     purchaseVat,
+    splitVat: sum("sales", "vat", true),
     balance: salesVat - purchaseVat,
-    rows,
+    rows: rows.map((r) =>
+      r.split ? r : { direction: r.direction, rate: r.rate, base: r.base, vat: r.vat },
+    ),
   };
+}
+
+export interface WithholdingRow {
+  documentId: string;
+  number: string;
+  date: string;
+  party: string;
+  /** "suffered": withheld from us by customers; "operated": withheld by us from suppliers. */
+  kind: "suffered" | "operated";
+  /** The amount the rate was applied to. */
+  base: number;
+  rate: number;
+  amount: number;
+}
+
+export interface WithholdingSummary {
+  suffered: number;
+  operated: number;
+  rows: WithholdingRow[];
+}
+
+/**
+ * Withholding taxes of issued documents in the period: those customers held back from us (a tax
+ * credit) and those we held back from suppliers (to be paid to the tax authority by the 16th of
+ * the next month). Credit notes subtract.
+ */
+export async function withholdingSummary(
+  db: SqlRunner,
+  from: string,
+  to: string,
+): Promise<WithholdingSummary> {
+  const docs = await db.query<Record<string, string | number | null>>(
+    `SELECT d.*, p.name AS party_name FROM documents d JOIN parties p ON p.id = d.party_id
+     WHERE d.status = 'issued' AND d.deleted_at IS NULL AND d.date >= ? AND d.date <= ?
+       AND d.type IN ('invoice', 'credit_note', 'purchase_invoice') AND COALESCE(d.withholding_amount, 0) <> 0
+     ORDER BY d.date, d.number`,
+    [from, to],
+  );
+  const rows: WithholdingRow[] = docs.map((d) => {
+    const sign = d["type"] === "credit_note" ? -1 : 1;
+    const amount = Number(d["withholding_amount"]);
+    const rate = Number(d["withholding_rate"]);
+    return {
+      documentId: String(d["id"]),
+      number: String(d["number"]),
+      date: String(d["date"]),
+      party: String(d["party_name"]),
+      kind: d["type"] === "purchase_invoice" ? "operated" : "suffered",
+      base: rate > 0 ? Math.round((amount * 100) / rate) : 0,
+      rate,
+      amount: sign * amount,
+    };
+  });
+  const sum = (kind: string) =>
+    rows.filter((r) => r.kind === kind).reduce((s, r) => s + r.amount, 0);
+  return { suffered: sum("suffered"), operated: sum("operated"), rows };
 }
 
 export interface AgingRow {
@@ -154,7 +252,7 @@ export async function aging(
     total: number;
     paid: number;
   }>(
-    `SELECT d.id, d.type, d.number, p.name AS party, d.due_date, d.date, d.total,
+    `SELECT d.id, d.type, d.number, p.name AS party, d.due_date, d.date, COALESCE(d.payable, d.total) AS total,
             COALESCE((SELECT SUM(amount) FROM payments x WHERE x.document_id = d.id AND x.deleted_at IS NULL), 0) AS paid
      FROM documents d JOIN parties p ON p.id = d.party_id
      WHERE d.status = 'issued' AND d.deleted_at IS NULL AND d.type IN (${direction === "receivable" ? "'invoice', 'credit_note'" : "'purchase_invoice'"})`,

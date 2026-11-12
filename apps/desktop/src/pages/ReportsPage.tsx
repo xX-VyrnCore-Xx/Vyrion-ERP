@@ -4,7 +4,14 @@ import { Button } from "../components/Button";
 import { Card, PageHeader } from "../components/Card";
 import { useAsync, useWorkspace } from "../app/context";
 import { formatMoney } from "../lib/money";
-import { profitAndLoss, projectSummary, toCsv, trialBalance, vatSummary } from "../modules/reports";
+import {
+  profitAndLoss,
+  projectSummary,
+  toCsv,
+  trialBalance,
+  vatSummary,
+  withholdingSummary,
+} from "../modules/reports";
 import { ErrorNote, TABLE, TD, TH } from "../ui/parts";
 import { saveText } from "../ui/saveText";
 
@@ -24,6 +31,7 @@ export function ReportsPage() {
       tb: await trialBalance(ws.db, from, to),
       pl: await profitAndLoss(ws.db, from, to),
       vat: await vatSummary(ws.db, from, to),
+      withholding: await withholdingSummary(ws.db, from, to),
       projects: await projectSummary(ws.db),
     };
   }, [from, to]);
@@ -151,6 +159,53 @@ export function ReportsPage() {
               Esporta CSV
             </Button>
           </Card>
+
+          {d.vat.splitVat !== 0 ? (
+            <p className="text-sm text-muted">
+              IVA in split payment del periodo:{" "}
+              <strong className="tabular-nums">{formatMoney(d.vat.splitVat)}</strong> (versata dagli
+              enti, non inclusa nel saldo IVA qui sopra).
+            </p>
+          ) : null}
+
+          {d.withholding.rows.length > 0 ? (
+            <Card title="Ritenute d'acconto del periodo">
+              <table className={TABLE}>
+                <thead>
+                  <tr>
+                    <th scope="col" className={TH}>
+                      Documento
+                    </th>
+                    <th scope="col" className={TH}>
+                      Controparte
+                    </th>
+                    <th scope="col" className={TH}>
+                      Tipo
+                    </th>
+                    <th scope="col" className={`${TH} text-right`}>
+                      Importo
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {d.withholding.rows.map((r) => (
+                    <tr key={r.documentId}>
+                      <td className={TD}>{r.number}</td>
+                      <td className={TD}>{r.party}</td>
+                      <td className={TD}>{r.kind === "suffered" ? "Subita" : "Operata"}</td>
+                      <td className={`${TD} text-right tabular-nums`}>{formatMoney(r.amount)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="mt-3 text-sm text-muted">
+                Subite (credito d'imposta):{" "}
+                <strong className="tabular-nums">{formatMoney(d.withholding.suffered)}</strong>
+                {" · "}Operate (da versare entro il 16 del mese successivo):{" "}
+                <strong className="tabular-nums">{formatMoney(d.withholding.operated)}</strong>
+              </p>
+            </Card>
+          ) : null}
 
           <Card title="Bilancio di verifica">
             <table className={TABLE}>

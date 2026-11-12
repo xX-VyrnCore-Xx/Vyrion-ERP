@@ -59,7 +59,7 @@ export const issuing = new Set<string>();
 /** What is still to be paid on an issued document. */
 export async function outstanding(tx: SqlRunner, documentId: string): Promise<number> {
   const [row] = await tx.query<{ total: number; paid: number }>(
-    `SELECT d.total AS total,
+    `SELECT COALESCE(d.payable, d.total) AS total,
             COALESCE((SELECT SUM(amount) FROM payments p WHERE p.document_id = d.id AND p.deleted_at IS NULL), 0) AS paid
      FROM documents d WHERE d.id = ?`,
     [documentId],
@@ -141,6 +141,52 @@ const document: EntityDef = {
     { name: "vat_total", label: "IVA", type: "money", default: 0, readonly: true },
     { name: "stamp_duty", label: "Bollo", type: "money", default: 0, readonly: true },
     { name: "total", label: "Totale", type: "money", default: 0, readonly: true, list: true },
+    {
+      name: "cassa_rate",
+      label: "Cassa previdenziale %",
+      type: "percent",
+      min: 0,
+      max: 100,
+      help: "Contributo (es. 4%) calcolato sulle righe e soggetto alla stessa IVA.",
+    },
+    { name: "cassa_amount", label: "Cassa previdenziale", type: "money", readonly: true },
+    {
+      name: "withholding_rate",
+      label: "Ritenuta d'acconto %",
+      type: "percent",
+      min: 0,
+      max: 100,
+      help: "Di solito 20%. Non si applica nel regime forfettario.",
+    },
+    {
+      name: "withholding_base_pct",
+      label: "Quota imponibile della ritenuta %",
+      type: "percent",
+      min: 0,
+      max: 100,
+      default: 100,
+    },
+    {
+      name: "withholding_on_cassa",
+      label: "Ritenuta anche sulla cassa",
+      type: "boolean",
+      default: true,
+    },
+    { name: "withholding_amount", label: "Ritenuta", type: "money", readonly: true },
+    {
+      name: "split_payment",
+      label: "Scissione dei pagamenti (split payment)",
+      type: "boolean",
+      default: false,
+      help: "Per le cessioni a enti pubblici: l'IVA la versa l'ente, non si incassa.",
+    },
+    {
+      name: "payable",
+      label: "Netto da incassare / pagare",
+      type: "money",
+      readonly: true,
+      list: true,
+    },
     { name: "notes", label: "Note", type: "longtext" },
   ],
   // A draft takes its lines with it.

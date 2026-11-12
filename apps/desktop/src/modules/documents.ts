@@ -69,8 +69,26 @@ export interface Totals {
   net: Cents;
   vat: Cents;
   stamp: Cents;
+  /** Pension fund contribution (cassa previdenziale), added to the taxable base. */
+  cassa: Cents;
+  /** Document total: net + cassa + VAT + stamp duty. */
   total: Cents;
+  /** Withholding tax (ritenuta d'acconto) held back from the payment. */
+  withholding: Cents;
+  /** VAT the customer pays directly to the tax authority (split payment). */
+  splitVat: Cents;
+  /** What is actually paid or collected: total − withholding − split VAT. */
+  payable: Cents;
   breakdown: VatBreakdown[];
+}
+
+export interface TotalsExtras {
+  /** Cassa previdenziale, % of the lines. It follows the VAT of the lines it is computed on. */
+  cassaRate?: number | null;
+  /** Ritenuta d'acconto: rate, % of the base that is subject to it, and whether the cassa is in the base. */
+  withholding?: { rate: number; basePct: number; onCassa: boolean } | null;
+  /** Split payment (scissione dei pagamenti): the VAT is not collected by the seller. */
+  split?: boolean;
 }
 
 export function lineNet(line: Pick<LineInput, "quantity" | "unit_price" | "discount">): Cents {
@@ -83,7 +101,11 @@ export function lineNet(line: Pick<LineInput, "quantity" | "unit_price" | "disco
  * In the flat-rate regime there is no VAT at all (nature N2.2) and bollo applies above the
  * threshold; in the ordinary regime bollo applies to the exempt/non-taxable (N1–N4) base.
  */
-export function computeTotals(lines: LineInput[], regime: "forfettario" | "ordinario"): Totals {
+export function computeTotals(
+  lines: LineInput[],
+  regime: "forfettario" | "ordinario",
+  extras: TotalsExtras = {},
+): Totals {
   const groups = new Map<string, VatBreakdown>();
   let net = 0;
   let stampBase = 0;
@@ -101,12 +123,58 @@ export function computeTotals(lines: LineInput[], regime: "forfettario" | "ordin
       stampBase += amount;
   }
   const breakdown = [...groups.values()].sort((a, b) => b.rate - a.rate);
+  // The cassa is computed on each group and taxed like it: its VAT rate is the group's.
+  let cassa = 0;
+  const cassaRate = extras.cassaRate ?? 0;
+  if (cassaRate > 0) {
+    for (const group of breakdown) {
+      const part = percentOf(group.base, cassaRate);
+      cassa += part;
+      group.base += part;
+    }
+  }
   for (const group of breakdown) group.vat = percentOf(group.base, group.rate);
   const vat = breakdown.reduce((sum, g) => sum + g.vat, 0);
   const stamp = stampBase > STAMP_THRESHOLD ? STAMP_AMOUNT : 0;
-  return { net, vat, stamp, total: net + vat + stamp, breakdown };
+  const total = net + cassa + vat + stamp;
+  const w = extras.withholding;
+  // Withholding is on the fees (and the cassa, if so chosen), never on the VAT.
+  const withholding =
+    w && w.rate > 0 ? percentOf(percentOf(net + (w.onCassa ? cassa : 0), w.basePct), w.rate) : 0;
+  const splitVat = extras.split ? vat : 0;
+  return {
+    net,
+    vat,
+    stamp,
+    cassa,
+    total,
+    withholding,
+    splitVat,
+    payable: total - withholding - splitVat,
+    breakdown,
+  };
 }
 
 export function dueDate(issueDate: string, termsDays: number): string {
   return addDays(issueDate, Math.max(0, termsDays));
+}
+
+/** The cassa / withholding / split settings stored on a document, as the totals need them. */
+export function extrasFromRecord(doc: Record<string, unknown>): TotalsExtras {
+  const rate = Number(doc["withholding_rate"] ?? 0) || 0;
+  return {
+    cassaRate: Number(doc["cassa_rate"] ?? 0) || 0,
+    withholding:
+      rate > 0
+        ? {
+            rate,
+            basePct: Number(doc["withholding_base_pct"] ?? 100),
+            onCassa:
+              doc["withholding_on_cassa"] === undefined || doc["withholding_on_cassa"] === null
+                ? true
+                : Boolean(doc["withholding_on_cassa"]),
+          }
+        : null,
+    split: Boolean(doc["split_payment"]),
+  };
 }

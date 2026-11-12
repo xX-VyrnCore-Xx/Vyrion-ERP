@@ -2,16 +2,19 @@ import type { SqlRunner } from "../data/db";
 import type { Ctx, Rec } from "../data/entity";
 import { ConflictError, NotFoundError, ValidationError } from "../data/errors";
 import type { EntityRepository } from "../data/repository";
-import { ACC, postEntry } from "./accounting";
+import { ACC, ensureAccount, postEntry } from "./accounting";
 import { getCompany } from "./company";
 import {
   computeTotals,
+  extrasFromRecord,
   dueDate,
   isFiscal,
   isSalesFiscal,
   lineNet,
   type DocType,
   type LineInput,
+  type Totals,
+  type TotalsExtras,
 } from "./documents";
 import { issuing } from "./erp";
 import { allocateFefo, lotForDocument } from "./stock";
@@ -74,6 +77,47 @@ export async function nextNumber(
 const formatNumber = (type: DocType, year: string, n: number): string =>
   `${PREFIX[type]} ${year}/${String(n).padStart(4, "0")}`;
 
+/**
+ * Cassa, withholding and split payment settings of a document, checked against the rules that
+ * make them (in)compatible: no withholding in the flat-rate regime, split payment only on sales
+ * with VAT and never together with a withholding.
+ */
+export function extrasOf(
+  doc: Record<string, unknown>,
+  regime: "forfettario" | "ordinario",
+  type: DocType,
+): TotalsExtras {
+  const rate = Number(doc["withholding_rate"] ?? 0) || 0;
+  const split = Boolean(doc["split_payment"]);
+  if (rate > 0 && regime === "forfettario")
+    throw new ValidationError({
+      withholding_rate: "Nel regime forfettario non si applica la ritenuta d'acconto",
+    });
+  if (split && type !== "invoice" && type !== "credit_note" && type !== "quote" && type !== "order")
+    throw new ValidationError({ split_payment: "Lo split payment riguarda solo le vendite" });
+  if (split && regime === "forfettario")
+    throw new ValidationError({ split_payment: "Senza IVA non c'è scissione dei pagamenti" });
+  if (split && rate > 0)
+    throw new ValidationError({
+      split_payment: "Lo split payment non si applica a operazioni soggette a ritenuta",
+    });
+  return extrasFromRecord(doc);
+}
+
+/** The cassa, withholding and split-payment choices a derived document inherits. */
+export function carriedOver(source: Record<string, unknown>): Record<string, unknown> {
+  const keys = [
+    "cassa_rate",
+    "withholding_rate",
+    "withholding_base_pct",
+    "withholding_on_cassa",
+    "split_payment",
+  ];
+  return Object.fromEntries(
+    keys.filter((k) => source[k] !== null && source[k] !== undefined).map((k) => [k, source[k]]),
+  );
+}
+
 /** Writes a document and its lines in one go, with totals computed from the lines. */
 export async function saveDocument(
   tx: SqlRunner,
@@ -106,7 +150,9 @@ export async function saveDocument(
     }
     return { ...line, vat_rate: rate };
   });
-  const totals = computeTotals(lines, regime);
+  const merged = { ...(existing ?? {}), ...input.header } as Record<string, unknown>;
+  const extras = extrasOf(merged, regime, type);
+  const totals = computeTotals(lines, regime, extras);
 
   const header: Record<string, unknown> = {
     ...input.header,
@@ -114,7 +160,10 @@ export async function saveDocument(
     net_total: totals.net,
     vat_total: totals.vat,
     stamp_duty: totals.stamp,
+    cassa_amount: totals.cassa,
+    withholding_amount: totals.withholding,
     total: totals.total,
+    payable: totals.payable,
   };
   if (type === "quote" || type === "order") {
     // Non-fiscal documents are numbered when they are first saved.
@@ -193,8 +242,12 @@ export async function issueDocument(
       vat_nature: (l["vat_nature"] as string | null) ?? null,
     })),
     regime,
+    extrasOf(doc, regime, doc["type"] as DocType),
   );
-  if (totals.total !== Number(doc["total"]))
+  if (
+    totals.total !== Number(doc["total"]) ||
+    totals.payable !== Number(doc["payable"] ?? doc["total"])
+  )
     throw new ConflictError("I totali non coincidono con le righe: salva di nuovo il documento");
   if (totals.total <= 0) throw new ValidationError({ total: "Il totale deve essere positivo" });
 
@@ -227,7 +280,7 @@ export async function issueDocument(
   }
 
   await moveStock(tx, ctx, repo, issued, lines);
-  await postDocument(tx, ctx, repo, issued, totals.net + totals.stamp, totals.vat);
+  await postDocument(tx, ctx, repo, issued, totals);
   return issued;
 }
 
@@ -302,33 +355,45 @@ async function postDocument(
   ctx: Ctx,
   repo: RepoOf,
   doc: Rec,
-  revenueOrCost: number,
-  vat: number,
+  totals: Totals,
 ): Promise<void> {
   const type = doc["type"] as DocType;
-  const total = Number(doc["total"]);
-  const stamp = Number(doc["stamp_duty"]);
-  const net = revenueOrCost - stamp;
+  const { stamp, vat, withholding, splitVat, payable } = totals;
+  // Revenue (or cost) is what the lines and the cassa add up to; the stamp is booked apart.
+  const net = totals.net + totals.cassa;
   const description = `${doc["number"]} · ${(await tx.query<{ name: string }>("SELECT name FROM parties WHERE id = ?", [doc["party_id"] as string]))[0]?.name ?? ""}`;
+  if (withholding > 0) {
+    await ensureAccount(
+      tx,
+      ctx,
+      repo,
+      type === "purchase_invoice" ? ACC.withholdingToPay : ACC.withholdingSuffered,
+    );
+  }
+  // With split payment the seller never receives (nor owes) the VAT: it stays out of the books.
+  const bookedVat = vat - splitVat;
   const lines =
     type === "invoice"
       ? [
-          { account: ACC.receivables, debit: total },
+          { account: ACC.receivables, debit: payable },
+          { account: ACC.withholdingSuffered, debit: withholding },
           { account: ACC.revenue, credit: net },
-          { account: ACC.vatDebit, credit: vat },
+          { account: ACC.vatDebit, credit: bookedVat },
           { account: ACC.stampRefund, credit: stamp },
         ]
       : type === "credit_note"
         ? [
-            { account: ACC.receivables, credit: total },
+            { account: ACC.receivables, credit: payable },
+            { account: ACC.withholdingSuffered, credit: withholding },
             { account: ACC.revenue, debit: net },
-            { account: ACC.vatDebit, debit: vat },
+            { account: ACC.vatDebit, debit: bookedVat },
             { account: ACC.stampRefund, debit: stamp },
           ]
         : [
             { account: ACC.costs, debit: net + stamp },
             { account: ACC.vatCredit, debit: vat },
-            { account: ACC.payables, credit: total },
+            { account: ACC.payables, credit: payable },
+            { account: ACC.withholdingToPay, credit: withholding },
           ];
   await postEntry(tx, ctx, repo, {
     date: doc["date"] as string,
@@ -377,6 +442,7 @@ export async function convertDocument(
       source_id: source.id,
       notes: source["notes"],
       status: "draft",
+      ...carriedOver(source),
     },
     lines,
   });

@@ -94,7 +94,7 @@ export function CalendarPage({ go }: { go: (to: string) => void }) {
     }
     for (const r of await q<{ id: string; number: string; due_date: string }>(
       `SELECT id, number, due_date FROM documents WHERE deleted_at IS NULL AND status = 'issued' AND type IN ('invoice','purchase_invoice')
-         AND total > COALESCE((SELECT SUM(amount) FROM payments p WHERE p.document_id = documents.id AND p.deleted_at IS NULL), 0)
+         AND COALESCE(payable, total) > COALESCE((SELECT SUM(amount) FROM payments p WHERE p.document_id = documents.id AND p.deleted_at IS NULL), 0)
          AND due_date >= ? AND due_date < ?`,
     )) {
       items.push({
