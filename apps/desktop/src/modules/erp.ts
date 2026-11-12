@@ -2,7 +2,15 @@ import type { SqlRunner } from "../data/db";
 import type { EntityDef, Rec } from "../data/entity";
 import { ConflictError, LockedError, ValidationError } from "../data/errors";
 import { opts } from "./common";
-import { ACC, ACCOUNT, JOURNAL_ENTRY, JOURNAL_LINE, postEntry, reverseEntries } from "./accounting";
+import {
+  ACC,
+  ACCOUNT,
+  ensureAccount,
+  JOURNAL_ENTRY,
+  JOURNAL_LINE,
+  postEntry,
+  reverseEntries,
+} from "./accounting";
 import {
   ALLOWED_STATUS,
   DOC_STATUS,
@@ -687,6 +695,148 @@ const attachment: EntityDef = {
   ],
 };
 
+export const ASSET_CATEGORIES = opts([
+  ["building", "Fabbricati"],
+  ["plant", "Impianti e macchinari"],
+  ["furniture", "Mobili e arredi"],
+  ["electronics", "Elaboratori e hardware"],
+  ["vehicle", "Automezzi"],
+  ["software", "Software e licenze pluriennali"],
+  ["other", "Altro"],
+]);
+
+/** Fixed assets (cespiti): bought once, written off over the years. */
+const fixedAsset: EntityDef = {
+  key: "fixed_asset",
+  module: "erp",
+  label: "Cespite",
+  plural: "Cespiti",
+  table: "fixed_assets",
+  title: (r) => String(r["name"]),
+  defaultOrder: "purchase_date desc",
+  fields: [
+    {
+      name: "name",
+      label: "Descrizione",
+      type: "text",
+      required: true,
+      searchable: true,
+      list: true,
+    },
+    {
+      name: "category",
+      label: "Categoria",
+      type: "select",
+      options: ASSET_CATEGORIES,
+      required: true,
+      default: "electronics",
+      list: true,
+    },
+    { name: "purchase_date", label: "Data di acquisto", type: "date", required: true, list: true },
+    { name: "cost", label: "Costo", type: "money", required: true, min: 1, list: true },
+    {
+      name: "rate",
+      label: "Aliquota annua %",
+      type: "percent",
+      required: true,
+      min: 0.01,
+      max: 100,
+      default: 20,
+      list: true,
+      help: "Nel primo anno si applica la metà dell'aliquota, come di prassi.",
+    },
+    { name: "residual", label: "Valore residuo", type: "money", default: 0, min: 0 },
+    {
+      name: "capitalize",
+      label: "Sposta il costo dai costi alle immobilizzazioni",
+      type: "boolean",
+      default: true,
+      help: "Attivo se l'acquisto è già nei «Costi per acquisti» (fattura di acquisto emessa).",
+    },
+    { name: "disposed_on", label: "Dismesso il", type: "date" },
+    { name: "notes", label: "Note", type: "longtext" },
+  ],
+  beforeSave: ({ record }) => {
+    if (Number(record["residual"] ?? 0) >= Number(record["cost"])) {
+      throw new ValidationError({ residual: "Il valore residuo deve essere inferiore al costo" });
+    }
+    if (record["disposed_on"] && String(record["disposed_on"]) < String(record["purchase_date"])) {
+      throw new ValidationError({ disposed_on: "La dismissione precede l'acquisto" });
+    }
+  },
+  afterSave: async ({ tx, ctx, repo, mode, record }) => {
+    if (mode !== "create" || !record["capitalize"]) return;
+    await ensureAccount(tx, ctx, repo, ACC.fixedAssets);
+    await postEntry(tx, ctx, repo, {
+      date: record["purchase_date"] as string,
+      description: `Capitalizzazione ${String(record["name"])}`,
+      sourceId: record.id,
+      lines: [
+        { account: ACC.fixedAssets, debit: Number(record["cost"]) },
+        { account: ACC.costs, credit: Number(record["cost"]) },
+      ],
+    });
+  },
+  beforeDelete: async ({ tx, ctx, repo, record }) => {
+    await reverseEntries(tx, ctx, repo, record.id, "cespite eliminato");
+  },
+};
+
+export const BANK_STATUS = opts([
+  ["open", "Da abbinare"],
+  ["matched", "Abbinato"],
+  ["ignored", "Ignorato"],
+]);
+
+/** A line of a bank statement, kept to be matched against payments. */
+const bankTransaction: EntityDef = {
+  key: "bank_transaction",
+  module: "erp",
+  label: "Movimento bancario",
+  plural: "Movimenti bancari",
+  table: "bank_transactions",
+  title: (r) => `${r["date"]} ${r["description"]}`,
+  defaultOrder: "date desc",
+  fields: [
+    { name: "date", label: "Data", type: "date", required: true, list: true },
+    {
+      name: "description",
+      label: "Descrizione",
+      type: "text",
+      required: true,
+      searchable: true,
+      list: true,
+    },
+    {
+      name: "amount",
+      label: "Importo (+ entrata, − uscita)",
+      type: "money",
+      required: true,
+      list: true,
+    },
+    {
+      name: "status",
+      label: "Stato",
+      type: "select",
+      options: BANK_STATUS,
+      required: true,
+      default: "open",
+      list: true,
+    },
+    { name: "payment_id", label: "Pagamento abbinato", type: "ref", ref: "payment" },
+    { name: "import_key", label: "Chiave di importazione", type: "text", hidden: true },
+    { name: "notes", label: "Note", type: "text" },
+  ],
+  beforeSave: ({ record }) => {
+    if (Number(record["amount"]) === 0)
+      throw new ValidationError({ amount: "L'importo non può essere zero" });
+    if (record["status"] === "matched" && !record["payment_id"])
+      throw new ValidationError({ payment_id: "Un movimento abbinato indica il pagamento" });
+    if (record["status"] !== "matched" && record["payment_id"])
+      throw new ValidationError({ status: "Con un pagamento abbinato lo stato è «Abbinato»" });
+  },
+};
+
 export const ERP_ENTITIES: EntityDef[] = [
   ACCOUNT,
   JOURNAL_ENTRY,
@@ -703,6 +853,8 @@ export const ERP_ENTITIES: EntityDef[] = [
   project,
   timeEntry,
   attachment,
+  fixedAsset,
+  bankTransaction,
 ];
 
 export type { Rec };

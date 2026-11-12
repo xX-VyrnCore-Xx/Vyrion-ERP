@@ -81,5 +81,45 @@ export function businessMigrations(): Migration[] {
         `CREATE INDEX ix_stock_movements_lot_id ON stock_movements(lot_id) WHERE deleted_at IS NULL`,
       ],
     },
+    {
+      id: 5,
+      name: "fixed-assets-bank",
+      statements: [
+        `CREATE TABLE fixed_assets (
+           id TEXT PRIMARY KEY,
+           version INTEGER NOT NULL DEFAULT 1,
+           created_at TEXT NOT NULL,
+           updated_at TEXT NOT NULL,
+           deleted_at TEXT,
+           name TEXT NOT NULL,
+           category TEXT NOT NULL CHECK (category IS NULL OR category IN ('building', 'plant', 'furniture', 'electronics', 'vehicle', 'software', 'other')),
+           purchase_date TEXT NOT NULL,
+           cost INTEGER NOT NULL,
+           rate REAL NOT NULL,
+           residual INTEGER,
+           capitalize INTEGER CHECK (capitalize IS NULL OR capitalize IN (0, 1)),
+           disposed_on TEXT,
+           notes TEXT
+         )`,
+        `CREATE INDEX ix_fixed_assets_updated ON fixed_assets(updated_at)`,
+        `CREATE TABLE bank_transactions (
+           id TEXT PRIMARY KEY,
+           version INTEGER NOT NULL DEFAULT 1,
+           created_at TEXT NOT NULL,
+           updated_at TEXT NOT NULL,
+           deleted_at TEXT,
+           date TEXT NOT NULL,
+           description TEXT NOT NULL,
+           amount INTEGER NOT NULL,
+           status TEXT NOT NULL CHECK (status IS NULL OR status IN ('open', 'matched', 'ignored')),
+           payment_id TEXT REFERENCES payments(id),
+           import_key TEXT,
+           notes TEXT
+         )`,
+        `CREATE INDEX ix_bank_transactions_payment_id ON bank_transactions(payment_id) WHERE deleted_at IS NULL`,
+        `CREATE INDEX ix_bank_transactions_import_key ON bank_transactions(import_key) WHERE deleted_at IS NULL`,
+        `CREATE INDEX ix_bank_transactions_updated ON bank_transactions(updated_at)`,
+      ],
+    },
   ];
 }

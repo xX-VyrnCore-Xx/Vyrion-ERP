@@ -119,6 +119,21 @@ const SETTINGS: CatalogItem[] = [
 
 /** What else people may call a page. */
 const EXTRA_KEYWORDS: Record<string, string[]> = {
+  closing: ["chiudere anno", "bilancio", "utile", "perdita", "stato patrimoniale", "fine anno"],
+  "fixed-assets": [
+    "ammortamento",
+    "ammortizzare",
+    "beni durevoli",
+    "immobilizzazioni",
+    "computer ammortizzato",
+  ],
+  reconciliation: [
+    "estratto conto",
+    "banca",
+    "movimenti bancari",
+    "quadratura banca",
+    "abbinare pagamenti",
+  ],
   duplicates: ["doppioni", "unisci", "unire clienti", "anagrafiche doppie", "stesso cliente"],
   server: [
     "raggiungibile",

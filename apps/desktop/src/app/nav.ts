@@ -118,6 +118,7 @@ export const NAV: NavSection[] = [
         children: [
           { label: "Scadenze", to: "deadlines" },
           { label: "Pagamenti", to: e("payment") },
+          { label: "Riconciliazione bancaria", to: "reconciliation" },
         ],
       },
       {
@@ -127,6 +128,8 @@ export const NAV: NavSection[] = [
         children: [
           { label: "Registrazioni", to: "journal" },
           { label: "Piano dei conti", to: e("account") },
+          { label: "Cespiti e ammortamenti", to: "fixed-assets" },
+          { label: "Chiusura esercizio", to: "closing" },
         ],
       },
       {
