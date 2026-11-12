@@ -20,6 +20,7 @@ import {
   type DocType,
 } from "./documents";
 import { REGIMES } from "./company";
+import { computePayslip } from "./payrollMath";
 
 export const PAYMENT_METHODS = opts([
   ["bank", "Bonifico"],
@@ -585,6 +586,39 @@ const employee: EntityDef = {
     { name: "hire_date", label: "Assunzione", type: "date" },
     { name: "end_date", label: "Cessazione", type: "date" },
     { name: "hourly_cost", label: "Costo orario", type: "money", default: 0, min: 0 },
+    {
+      name: "weekly_hours",
+      label: "Ore settimanali",
+      type: "decimal",
+      default: 40,
+      min: 0,
+      max: 80,
+      help: "Orario contrattuale: serve a calcolare le ore attese e lo straordinario.",
+    },
+    { name: "gross_monthly", label: "Lordo mensile", type: "money", min: 0 },
+    {
+      name: "contrib_employee_pct",
+      label: "Contributi a carico del dipendente %",
+      type: "percent",
+      min: 0,
+      max: 100,
+      help: "Aliquota da usare nel prospetto (la fornisce il consulente del lavoro).",
+    },
+    {
+      name: "contrib_employer_pct",
+      label: "Contributi a carico dell'azienda %",
+      type: "percent",
+      min: 0,
+      max: 100,
+    },
+    {
+      name: "tax_pct",
+      label: "Aliquota effettiva ritenuta IRPEF %",
+      type: "percent",
+      min: 0,
+      max: 100,
+      help: "Aliquota media effettiva stimata, non gli scaglioni.",
+    },
     { name: "notes", label: "Note", type: "longtext" },
   ],
   beforeSave: ({ record }) => {
@@ -951,6 +985,175 @@ const vatSettlement: EntityDef = {
   },
 };
 
+export const PAYSLIP_STATUS = opts([
+  ["draft", "Bozza"],
+  ["registered", "Registrato"],
+  ["paid", "Pagato"],
+]);
+export const PUNCH_SOURCES = opts([
+  ["manual", "Manuale"],
+  ["import", "Importato dal timbratore"],
+]);
+
+const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/** Payslip ids whose status is being moved by `registerPayslip` / `payPayslip`. */
+export const payrolling = new Set<string>();
+
+/** One working day of one employee: clock-in, clock-out and break. */
+const attendance: EntityDef = {
+  key: "attendance",
+  module: "erp",
+  label: "Presenza",
+  plural: "Presenze",
+  table: "attendances",
+  title: (r) => `${r["date"]} ${r["clock_in"]}–${r["clock_out"]}`,
+  defaultOrder: "date desc",
+  fields: [
+    {
+      name: "employee_id",
+      label: "Dipendente",
+      type: "ref",
+      ref: "employee",
+      required: true,
+      list: true,
+    },
+    {
+      name: "date",
+      label: "Giorno",
+      type: "date",
+      required: true,
+      unique: ["employee_id"],
+      list: true,
+    },
+    { name: "clock_in", label: "Entrata (HH:MM)", type: "text", required: true, list: true },
+    { name: "clock_out", label: "Uscita (HH:MM)", type: "text", required: true, list: true },
+    { name: "break_minutes", label: "Pausa (minuti)", type: "integer", default: 0, min: 0 },
+    {
+      name: "worked_minutes",
+      label: "Minuti lavorati",
+      type: "integer",
+      readonly: true,
+      list: true,
+    },
+    {
+      name: "source",
+      label: "Origine",
+      type: "select",
+      options: PUNCH_SOURCES,
+      default: "manual",
+    },
+    { name: "notes", label: "Note", type: "text" },
+  ],
+  beforeSave: ({ record }) => {
+    const errors: Record<string, string> = {};
+    const inn = String(record["clock_in"] ?? "");
+    const out = String(record["clock_out"] ?? "");
+    if (!TIME.test(inn)) errors["clock_in"] = "Usa il formato HH:MM (es. 08:30)";
+    if (!TIME.test(out)) errors["clock_out"] = "Usa il formato HH:MM (es. 17:30)";
+    if (Object.keys(errors).length) throw new ValidationError(errors);
+    const minutes = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3));
+    const span = minutes(out) - minutes(inn);
+    if (span <= 0) throw new ValidationError({ clock_out: "L'uscita deve essere dopo l'entrata" });
+    const pause = Number(record["break_minutes"] ?? 0);
+    if (pause >= span) throw new ValidationError({ break_minutes: "La pausa supera la presenza" });
+    record["worked_minutes"] = span - pause;
+  },
+};
+
+/** A monthly payroll statement (prospetto gestionale). Not the official pay slip. */
+const payslip: EntityDef = {
+  key: "payslip",
+  module: "erp",
+  label: "Busta paga",
+  plural: "Buste paga",
+  table: "payslips",
+  title: (r) => `Busta paga ${r["period"]}`,
+  defaultOrder: "period desc",
+  fields: [
+    {
+      name: "employee_id",
+      label: "Dipendente",
+      type: "ref",
+      ref: "employee",
+      required: true,
+      list: true,
+    },
+    {
+      name: "period",
+      label: "Mese (AAAA-MM)",
+      type: "text",
+      required: true,
+      unique: ["employee_id"],
+      list: true,
+    },
+    { name: "base_pay", label: "Retribuzione base", type: "money", required: true, min: 0 },
+    { name: "overtime_pay", label: "Straordinario", type: "money", default: 0, min: 0 },
+    { name: "other_pay", label: "Altre competenze", type: "money", default: 0, min: 0 },
+    { name: "reimbursements", label: "Rimborsi non imponibili", type: "money", default: 0, min: 0 },
+    { name: "gross", label: "Lordo", type: "money", readonly: true, list: true },
+    {
+      name: "contrib_employee_pct",
+      label: "Contributi dipendente %",
+      type: "percent",
+      default: 0,
+      min: 0,
+      max: 100,
+    },
+    {
+      name: "contrib_employer_pct",
+      label: "Contributi azienda %",
+      type: "percent",
+      default: 0,
+      min: 0,
+      max: 100,
+    },
+    { name: "tax_pct", label: "Ritenuta IRPEF %", type: "percent", default: 0, min: 0, max: 100 },
+    { name: "contrib_employee", label: "Contributi dipendente", type: "money", readonly: true },
+    { name: "contrib_employer", label: "Contributi azienda", type: "money", readonly: true },
+    { name: "income_tax", label: "Ritenuta IRPEF", type: "money", readonly: true },
+    { name: "net", label: "Netto in busta", type: "money", readonly: true, list: true },
+    { name: "total_cost", label: "Costo azienda", type: "money", readonly: true },
+    {
+      name: "status",
+      label: "Stato",
+      type: "select",
+      options: PAYSLIP_STATUS,
+      required: true,
+      default: "draft",
+      list: true,
+    },
+    { name: "paid_date", label: "Pagata il", type: "date" },
+    { name: "notes", label: "Note", type: "text" },
+  ],
+  beforeSave: ({ record, before }) => {
+    if (before && before["status"] !== "draft" && !payrolling.has(record.id))
+      throw new LockedError(
+        "Una busta paga registrata non si modifica: eliminala (storno) e rifalla",
+      );
+    const period = String(record["period"] ?? "");
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(period))
+      throw new ValidationError({ period: "Usa il formato AAAA-MM (es. 2026-03)" });
+    Object.assign(
+      record,
+      computePayslip({
+        basePay: Number(record["base_pay"] ?? 0),
+        overtimePay: Number(record["overtime_pay"] ?? 0),
+        otherPay: Number(record["other_pay"] ?? 0),
+        reimbursements: Number(record["reimbursements"] ?? 0),
+        employeePct: Number(record["contrib_employee_pct"] ?? 0),
+        employerPct: Number(record["contrib_employer_pct"] ?? 0),
+        taxPct: Number(record["tax_pct"] ?? 0),
+      }),
+    );
+  },
+  beforeDelete: async ({ tx, ctx, repo, record }) => {
+    if (record["status"] === "paid")
+      throw new ConflictError("La busta paga è già stata pagata: non si può eliminare");
+    await reverseEntries(tx, ctx, repo, record.id, "busta paga eliminata");
+  },
+};
+
 export const ERP_ENTITIES: EntityDef[] = [
   ACCOUNT,
   JOURNAL_ENTRY,
@@ -970,6 +1173,8 @@ export const ERP_ENTITIES: EntityDef[] = [
   fixedAsset,
   bankTransaction,
   vatSettlement,
+  attendance,
+  payslip,
 ];
 
 export type { Rec };
