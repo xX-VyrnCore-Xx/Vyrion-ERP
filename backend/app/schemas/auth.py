@@ -86,6 +86,15 @@ class TotpDisableRequest(BaseModel):
     code: Code
 
 
+class RecoveryCodesRequest(BaseModel):
+    """New recovery codes: the same proof as switching 2FA off (password and a current code)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    password: Password
+    code: Code
+
+
 class RecoveryCodesResponse(BaseModel):
     recovery_codes: list[str]
 
@@ -95,6 +104,8 @@ class MeResponse(BaseModel):
     permissions: list[str]
     session_id: uuid.UUID
     mfa_verified: bool
+    # True when the server requires 2FA for administrators and this account has not set it up.
+    second_factor_required: bool = False
 
 
 class SessionRead(BaseModel):

@@ -47,6 +47,11 @@ class AuthContext:
     def has(self, permission: str) -> bool:
         return permission in self.permissions
 
+    @property
+    def is_administrator(self) -> bool:
+        """Holds the super-admin role or any ``:admin`` permission."""
+        return self.is_super_admin or any(p.endswith(":admin") for p in self.permissions)
+
     def audit(self) -> AuditContext:
         return AuditContext(
             actor_user_id=self.user.id,

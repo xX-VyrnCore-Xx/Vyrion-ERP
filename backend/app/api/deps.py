@@ -7,7 +7,12 @@ from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.errors import AuthenticationError, ForbiddenError, TooManyRequestsError
+from app.core.errors import (
+    AuthenticationError,
+    ForbiddenError,
+    SecondFactorRequiredError,
+    TooManyRequestsError,
+)
 from app.core.ratelimit import RateLimiter
 from app.services.auth import AuthService
 from app.services.authz import AuthContext, ClientInfo
@@ -54,7 +59,23 @@ async def rate_limit_ip(request: Request) -> None:
         raise TooManyRequestsError("Too many requests", retry_after=hit.retry_after)
 
 
+# Where an administrator without two-factor authentication is still allowed to go: far enough
+# to turn it on, change the password, and sign out.
+API_PREFIX = "/api/v1"
+ENROLMENT_PATHS = frozenset(
+    {
+        "/auth/me",
+        "/auth/logout",
+        "/auth/logout-all",
+        "/auth/2fa/setup",
+        "/auth/2fa/enable",
+        "/auth/password/change",
+    }
+)
+
+
 async def current_context(
+    request: Request,
     session: SessionDep,
     auth: AuthServiceDep,
     client: ClientDep,
@@ -62,7 +83,17 @@ async def current_context(
 ) -> AuthContext:
     if credentials is None or credentials.scheme.lower() != "bearer":
         raise AuthenticationError()
-    return await auth.authenticate(session, access_token=credentials.credentials, client=client)
+    context = await auth.authenticate(session, access_token=credentials.credentials, client=client)
+    if (
+        request.app.state.settings.require_2fa_for_admins
+        and context.is_administrator
+        and not context.user.totp_enabled
+        and request.url.path.removeprefix(API_PREFIX) not in ENROLMENT_PATHS
+    ):
+        raise SecondFactorRequiredError(
+            "Per continuare attiva la verifica in due passaggi del tuo account"
+        )
+    return context
 
 
 CurrentContext = Annotated[AuthContext, Depends(current_context)]

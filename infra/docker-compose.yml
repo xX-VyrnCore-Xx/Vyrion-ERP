@@ -51,6 +51,7 @@ services:
       # Fernet key(s) protecting stored secrets (2FA seeds). Comma-separated; first one encrypts.
       VYRION_ENCRYPTION_KEYS: ${ENCRYPTION_KEYS:?required}
       VYRION_BACKUP_DIR: /backups
+      VYRION_REQUIRE_2FA_FOR_ADMINS: ${REQUIRE_2FA_FOR_ADMINS:-false}
     volumes:
       # Read-only: the API can show the backups but never alter or delete them.
       - backups:/backups:ro

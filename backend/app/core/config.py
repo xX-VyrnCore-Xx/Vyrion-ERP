@@ -74,6 +74,10 @@ class Settings(BaseSettings):
     password_min_length: int = Field(default=12, ge=8, le=64)
     setup_token_ttl_hours: int = Field(default=72, ge=1, le=24 * 14)
     totp_issuer: str = Field(default="Vyrion ERP", min_length=1, max_length=64)
+    # When on, an account with administrative permissions can do nothing but turn on
+    # two-factor authentication until it has done so. Off by default: switch it on once
+    # the administrators have an authenticator app.
+    require_2fa_for_admins: bool = False
 
     @field_validator("database_url")
     @classmethod
