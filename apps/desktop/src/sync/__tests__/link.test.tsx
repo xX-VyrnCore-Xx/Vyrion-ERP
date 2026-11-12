@@ -64,7 +64,8 @@ describe("linking to the server later", () => {
 
     const user = userEvent.setup();
     render(<App preloaded={ws} />);
-    await user.click(await screen.findByRole("link", { name: "Impostazioni" }));
+    await user.click(await screen.findByRole("button", { name: /^Account e profilo/ }));
+    await user.click(await screen.findByRole("menuitem", { name: /Account e server/ }));
     const card = within(
       (await screen.findByRole("heading", { name: "Sincronizzazione" })).closest(
         "section",
@@ -108,7 +109,8 @@ describe("linking to the server later", () => {
     localStorage.setItem("vyrion.serverUrl", "https://erp.vyrncore.lan");
     const user = userEvent.setup();
     render(<App preloaded={ws} />);
-    await user.click(await screen.findByRole("link", { name: "Impostazioni" }));
+    await user.click(await screen.findByRole("button", { name: /^Account e profilo/ }));
+    await user.click(await screen.findByRole("menuitem", { name: /Account e server/ }));
     const card = within(
       (await screen.findByRole("heading", { name: "Sincronizzazione" })).closest(
         "section",

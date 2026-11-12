@@ -7,6 +7,15 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ### Changed
 
+- **Sidebar rifatta, più compatta, con sottomenu.** Voci più basse e testo più piccolo; i gruppi
+  CRM, ERP e IT si possono chiudere (resta visibile la voce in cui sei); molte voci hanno un
+  sottomenu (per esempio Documenti → Fatture, Preventivi, Ordini…; Pipeline → Per fase, Elenco,
+  Fasi) che si apre da solo sulla pagina corrente e ricorda come lo lasci.
+- **Menu account e profilo** in basso nella sidebar, al posto dell'etichetta «Solo locale (nessun
+  server)»: mostra profilo e stato del collegamento e porta a Profilo e azienda, Account e
+  server, Impostazioni software, Aggiornamenti, Dati e backup; ha il cambio tema e «Esci da
+  Vyrion ERP». Le **Impostazioni** sono ora divise in sezioni (`settings/profile`, `account`,
+  `app`, `updates`, `data`) e non sono più una voce del menu principale.
 - **Firma di entrambe le build, senza certificati.** L'installer Windows ora ha una firma
   Authenticode da un certificato autofirmato creato dalla CI (editore «VyrnCore Enterprises»,
   controllato a ogni build) e l'immagine disco macOS viene firmata «ad hoc» come l'app. Windows e
