@@ -171,6 +171,7 @@ export const NAV: NavSection[] = [
         children: [
           { label: "Report del periodo", to: "reports" },
           { label: "Registri IVA e liquidazione", to: "vat" },
+          { label: "Esportazione per il commercialista", to: "accountant-export" },
         ],
       },
     ],

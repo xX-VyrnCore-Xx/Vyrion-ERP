@@ -37,6 +37,9 @@ const DocumentsPage = lazy(() =>
 const PayrollPage = lazy(() =>
   import("./pages/PayrollPage").then((m) => ({ default: m.PayrollPage })),
 );
+const AccountantExportPage = lazy(() =>
+  import("./pages/AccountantExportPage").then((m) => ({ default: m.AccountantExportPage })),
+);
 const VatPage = lazy(() => import("./pages/VatPage").then((m) => ({ default: m.VatPage })));
 const BillingHoursPage = lazy(() =>
   import("./pages/BillingHoursPage").then((m) => ({ default: m.BillingHoursPage })),
@@ -207,6 +210,7 @@ function Shell({ volatile }: { volatile: boolean }) {
   else if (section === "duplicates") page = <DuplicatesPage />;
   else if (section === "vat") page = <VatPage />;
   else if (section === "payroll") page = <PayrollPage />;
+  else if (section === "accountant-export") page = <AccountantExportPage />;
   else if (section === "billing-hours") page = <BillingHoursPage go={go} />;
   else if (section === "closing") page = <ClosingPage />;
   else if (section === "fixed-assets") page = <FixedAssetsPage />;
