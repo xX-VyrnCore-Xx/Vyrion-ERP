@@ -131,7 +131,7 @@ aggiornamenti automatici e la prima esecuzione reale su GitHub Actions e su runn
 
 Fatto e verificato:
 
-- **End-to-end contro il server vero** (`apps/desktop/src/sync/__tests__/e2e.test.ts`, job CI «End-to-end»): due dispositivi, unione e conflitti, lavoro offline e ripresa, rinnovo del token, flussi della console (utenti, ruoli, audit, sessioni, stato, backup, invito).
+- **End-to-end contro il server vero** (`apps/desktop/src/sync/__tests__/e2e.test.ts`, job CI «End-to-end»): due dispositivi, unione e conflitti, lavoro offline e ripresa, rinnovo del token e flussi dell'API di amministrazione (utenti, ruoli, audit, sessioni, stato, backup, invito).
 - **Prestazioni** (`src/__tests__/performance.test.ts`): con 3000 record, inserimento ~0,5 s, ricerca 4–24 ms, indicatori 1 ms (SQLite in memoria; margini larghi per non fallire su CI lenta).
 - **Backup**: ripristino confrontato riga per riga in CI (M10).
 - **Revisione di sicurezza interna**: vedi [SECURITY.md](../SECURITY.md).

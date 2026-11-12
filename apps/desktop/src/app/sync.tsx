@@ -58,8 +58,6 @@ export interface SyncApi extends SyncState {
   syncNow(): Promise<void>;
   resolve(conflictId: number, choice: "mine" | "server"): Promise<void>;
   disconnect(): Promise<void>;
-  /** A signed-in call to the server API; rejects when not connected. */
-  request<T>(method: string, path: string, body?: unknown): Promise<T>;
 }
 
 const EMPTY: SyncState = {
@@ -97,7 +95,6 @@ export function SyncProvider({ ws, children }: { ws: Workspace; children: ReactN
   const engineRef = useRef<SyncEngine | null>(null);
   const challenge = useRef<{ serverUrl: string; email: string; token: string } | null>(null);
   const busy = useRef(false);
-  const transportRef = useRef<HttpTransport | null>(null);
   const failures = useRef(0);
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const countdown = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -119,7 +116,6 @@ export function SyncProvider({ ws, children }: { ws: Workspace; children: ReactN
       const transport = new HttpTransport(session, ws.deviceId, (renewed) =>
         setSetting(ws.db, SESSION, renewed, ws.ctx.now()),
       );
-      transportRef.current = transport;
       return new SyncEngine(ws, transport);
     },
     [ws],
@@ -272,18 +268,12 @@ export function SyncProvider({ ws, children }: { ws: Workspace; children: ReactN
         await refresh();
         await run();
       },
-      request<T>(method: string, path: string, body?: unknown): Promise<T> {
-        const transport = transportRef.current;
-        if (!transport) return Promise.reject(new Error("Non sei collegato al server"));
-        return transport.request<T>(method, path, body);
-      },
       async disconnect() {
         const session = await getSetting<SyncSession>(ws.db, SESSION);
         await engineRef.current?.disconnect();
         if (session) await logout(session);
         await setSetting(ws.db, SESSION, null, ws.ctx.now());
         engineRef.current = null;
-        transportRef.current = null;
         clearRetry();
         setState(EMPTY);
       },

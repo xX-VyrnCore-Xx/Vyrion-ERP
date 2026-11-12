@@ -35,7 +35,6 @@ export const it = {
     serverSection: "Server aziendale (facoltativo)",
     serverIntro:
       "Vyrion ERP funziona da solo, con i dati su questo computer. Il collegamento a un server aziendale è facoltativo e si può attivare in qualsiasi momento: i dati esistenti verranno poi sincronizzati con esso.",
-    serverStatusLink: "Stato del server",
     serverUrl: "Indirizzo del server",
     serverUrlHelp:
       "URL HTTPS del backend raggiungibile via VPN, ad esempio https://erp.vyrncore.lan",
