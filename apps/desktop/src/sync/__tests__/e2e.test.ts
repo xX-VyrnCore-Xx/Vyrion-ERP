@@ -125,7 +125,7 @@ describe.skipIf(!url)("real server", () => {
     expect((await a.engine.syncNow()).sent).toBe(0);
   });
 
-  it("serves the administration console: users, roles, audit, sessions, status, backups", async () => {
+  it("serves the administration API: users, roles, audit, sessions, status, backups", async () => {
     const d = await device();
     const get = <T>(path: string) => d.transport.request<T>("GET", path);
     const users = await get<{ items: { email: string; id: string; version: number }[] }>(

@@ -46,9 +46,9 @@ describe("menu model", () => {
 });
 
 describe("Sidebar", () => {
-  it("keeps the CRM, ERP, IT and Server groups always open", () => {
+  it("keeps the CRM, ERP and IT groups always open", () => {
     show(place(""));
-    for (const name of ["CRM", "ERP", "IT", "Server"]) {
+    for (const name of ["CRM", "ERP", "IT"]) {
       expect(screen.getByRole("heading", { name })).toBeInTheDocument();
       expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
     }

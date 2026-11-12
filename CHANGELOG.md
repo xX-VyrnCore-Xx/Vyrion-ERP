@@ -88,21 +88,24 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
   `pg_dump` cifrato `age` (solo chiave pubblica sul server), checksum, rotazione 7 giornalieri /
   4 settimanali / 12 mensili, seconda destinazione verificata, controllo di integrità e prova di
   ripristino. Test end-to-end in CI (ripristino confrontato riga per riga, chiave sbagliata, file
-  manomesso). In **Server → Backup** l'app mostra stato, copie e storico reali; il backend legge il
-  volume in sola lettura (`GET /api/v1/backups`).
+  manomesso). Il backend legge il volume in sola lettura e ne espone lo stato in
+  `GET /api/v1/backups`, per il programma di amministrazione del server.
 
 ### Added
 
-- **Sidebar**: i gruppi CRM, ERP, IT e Server restano sempre aperti; si chiudono solo i sottomenu al loro interno.
-- **Console del server dentro al software**: nuova sezione «Server» nella Sidebar con un
-  sottoprogramma a menu proprio: stato e sincronizzazione (salute, coda, conflitti, dispositivi),
-  utenti (invito, attiva/disattiva, ruoli, reset password e 2FA, disconnessione), ruoli e permessi,
-  registro attività, sessioni e accessi, dati dell'azienda sul server.
+- **Sidebar**: i gruppi CRM, ERP e IT restano sempre aperti; si chiudono solo i sottomenu al loro interno.
 - **Sincronizzazione al ritorno online**: se il server o la rete non ci sono, il software lavora
   in locale e riprova da solo con pause crescenti (5, 10, 20, 40, 60 s, con conto alla rovescia);
   appena torna la rete (o il server) invia le modifiche in coda e scarica quelle degli altri.
   Le modifiche locali partono dopo pochi secondi, senza aspettare il minuto.
-- Server: `GET /api/v1/sync/status` (record, modifiche, dispositivi) per la console.
+- Server: `GET /api/v1/sync/status` (record, modifiche, dispositivi) e `GET /api/v1/backups` per gli strumenti di amministrazione.
+
+### Removed
+
+- **La sezione «Server» dell'app** (console con utenti, ruoli, registro attività, sessioni, backup e
+  azienda): l'amministrazione del server vivrà in un altro programma. Restano nell'app il
+  collegamento al server, la sincronizzazione (con ripresa automatica al ritorno online) e la
+  risoluzione dei conflitti in Impostazioni → Account e server; il server espone ancora le stesse API.
 
 ### Added
 

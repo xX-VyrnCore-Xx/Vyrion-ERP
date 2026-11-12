@@ -71,13 +71,14 @@ anche in una seconda destinazione e verificato lì. Ogni esecuzione aggiunge una
 4. Per la regola 3-2-1 monta una seconda destinazione (`BACKUP_COPY_PATH` sull'host e
    `BACKUP_COPY_DIR` nel container). Una cartella sullo stesso disco **non** è una seconda copia.
 
-## Console del server
+## Stato dei backup via API
 
-In **Server → Backup** (permesso `core.backups:view`, riservato agli amministratori) l'app mostra
+`GET /api/v1/backups` (permesso `core.backups:view`, riservato agli amministratori) restituisce
 ultimo backup, ultimo controllo, ultima prova di ripristino, i file conservati e lo storico, letti
-da `GET /api/v1/backups`. Il volume è montato in **sola lettura** nel backend: l'API non può
-alterare né cancellare i backup. Il server risulta «non aggiornato» se non c'è un backup riuscito
-da più di 36 ore.
+dal registro reale del servizio. Lo usa il programma di amministrazione del server (non l'app
+desktop). Il volume è montato in **sola lettura** nel backend: l'API non può alterare né
+cancellare i backup. Il server risulta «non aggiornato» se non c'è un backup riuscito da più di
+36 ore.
 
 ## Prova di ripristino
 

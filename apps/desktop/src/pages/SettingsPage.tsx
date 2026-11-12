@@ -156,14 +156,6 @@ export function SettingsPage({
                       {t.settings.save}
                     </Button>
                     {serverUrl !== null && <Button onClick={remove}>{t.settings.remove}</Button>}
-                    {serverUrl !== null && (
-                      <a
-                        className="self-center text-sm text-accent hover:underline"
-                        href="#/server"
-                      >
-                        {t.settings.serverStatusLink}
-                      </a>
-                    )}
                   </div>
                 </form>
               </Card>

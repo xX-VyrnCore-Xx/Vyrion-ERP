@@ -158,7 +158,7 @@ describe("optional server link", () => {
     expect(localStorage.getItem("vyrion.serverUrl")).toBeNull();
   });
 
-  it("connects after a valid address is saved and shows real component data", async () => {
+  it("connects after a valid address is saved and shows the connection", async () => {
     const fetchSpy = vi.fn(() => Promise.resolve(new Response(JSON.stringify(READY))));
     vi.stubGlobal("fetch", fetchSpy);
     const ws = await testWorkspace();
@@ -175,10 +175,9 @@ describe("optional server link", () => {
     await user.click(card.getByRole("button", { name: "Salva" }));
     expect(localStorage.getItem("vyrion.serverUrl")).toBe("https://erp.vyrncore.lan");
 
-    await user.click(card.getByRole("link", { name: "Stato del server" }));
-    const main = within(screen.getByRole("main"));
-    await waitFor(() => expect(main.getByText("Connesso")).toBeInTheDocument());
-    expect(main.getByText("9.9.9")).toBeInTheDocument();
+    // the connection shows in the sidebar's profile area once the server answers
+    const side = within(screen.getByRole("complementary"));
+    await waitFor(() => expect(side.getByText(/Connesso/)).toBeInTheDocument());
     expect(fetchSpy).toHaveBeenCalledWith(
       "https://erp.vyrncore.lan/api/v1/health/ready",
       expect.anything(),

@@ -125,7 +125,15 @@ export function SyncCard({ serverUrl }: { serverUrl: string | null }) {
               .
             </p>
           ) : null}
-          <ErrorNote message={sync.error} />
+          {sync.reachable === false ? (
+            <p role="status" className="text-sm text-warning">
+              Server non raggiungibile: i dati restano sul computer e si inviano da soli appena
+              torna disponibile
+              {sync.retryIn !== null ? ` (nuovo tentativo tra ${sync.retryIn} s)` : ""}.
+            </p>
+          ) : (
+            <ErrorNote message={sync.error} />
+          )}
           {sync.lastReport?.problems.length ? (
             <ul className="space-y-1 rounded-lg border border-warning/40 bg-warning/10 p-3 text-xs text-warning">
               {sync.lastReport.problems.slice(0, 5).map((p, i) => (
