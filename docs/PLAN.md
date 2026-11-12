@@ -9,14 +9,27 @@ documentata**. Nessuna funzione viene mostrata nell'interfaccia prima di avere u
 | 2 | Configurazione dell'ambiente | ✅ Completata |
 | 3 | Database e backend | ✅ Completata |
 | 4 | Autenticazione e autorizzazioni | ✅ Completata |
-| 5 | Applicazione desktop | ⏳ Prossima |
-| 6 | Sistema di sincronizzazione | Pianificata |
-| 7 | Moduli ERP | Pianificata |
-| 8 | Moduli CRM | Pianificata |
-| 9 | Moduli IT | Pianificata |
+| 5 | Applicazione desktop | ✅ Completata (shell Tauri 2, ricerca, notifiche, dashboard; DB locale cifrato SQLCipher) |
+| 6 | Sistema di sincronizzazione | ✅ Completata (offline-first, coda, conflitti; vedi [SYNC_ENGINE.md](SYNC_ENGINE.md)) |
+| 7 | Moduli ERP | ✅ Completata, con le lacune elencate in [MODULES.md](MODULES.md) |
+| 8 | Moduli CRM | ✅ Completata, con le lacune elencate in [MODULES.md](MODULES.md) |
+| 9 | Moduli IT | ✅ Completata |
 | 10 | Backup e infrastruttura | ✅ Completata (database; vedi limiti in BACKUP.md) |
 | 11 | Test e ottimizzazione | ◐ Parziale (vedi sotto) |
-| 12 | Build e release | Pianificata |
+| 12 | Build e release | ◐ Parziale: build, release automatica e aggiornamenti firmati attivi; mancano firma Windows e notarizzazione macOS |
+
+**Stato reale (release 0.1.19):** installer Windows x64 e macOS Apple Silicon pubblicati
+automaticamente a ogni merge su `main` (ultime 3 release conservate), aggiornamento automatico
+con firma minisign. Registri IVA e liquidazione, ritenuta/cassa/split payment, chiusura
+dell'esercizio, ammortamenti, riconciliazione bancaria, magazzini e lotti, promemoria e calendario
+ICS, importazione CSV, unione dei duplicati e PDF dei documenti sono implementati.
+**Non verificato:** database SQLCipher e app Tauri in esecuzione reale, aggiornamento automatico da
+un'installazione precedente, consumi; i calcoli fiscali **non** sono stati validati da un
+commercialista.
+
+**Ancora da fare:** buste paga e presenze (timbratore), fatture multi-valuta, XML FatturaPA/SDI,
+integrazione email, agenti di monitoraggio, firma Windows (certificato) e notarizzazione macOS
+(account Apple a pagamento). La sezione Server è stata tolta dall'app: vivrà in un altro programma.
 
 ## M1 — Architettura e repository ✅
 
@@ -124,8 +137,7 @@ sicurezza e prestazioni; build firmate Windows/macOS, notarizzazione, aggiorname
 release e changelog automatici.
 
 **Anticipato dalla M12:** la pipeline di build e rilascio con pulizia automatica (ultime 3
-release) è scritta: vedi [RELEASING.md](RELEASING.md). Resta da fare la firma di Windows, gli
-aggiornamenti automatici e la prima esecuzione reale su GitHub Actions e su runner Windows/macOS.
+release) è scritta: vedi [RELEASING.md](RELEASING.md). La pipeline gira ormai su GitHub Actions (runner Windows/macOS) e gli aggiornamenti automatici sono attivi. Resta da fare la firma di Windows e la notarizzazione macOS.
 
 ## M11 — Test e ottimizzazione ◐
 
