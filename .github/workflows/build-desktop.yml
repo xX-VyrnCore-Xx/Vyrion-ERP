@@ -76,6 +76,10 @@ jobs:
       # Shown in the app's About panel.
       VITE_APP_COMMIT: ${{ github.sha }}
     steps:
+      # Newer Git prints a long hint about the default branch name every time the checkout
+      # initialises the repository; the repository's name for it is irrelevant here.
+      - name: Silence Git's default-branch hint
+        run: git config --global advice.defaultBranchName false
       - uses: actions/checkout@v7
       # Automatic releases number themselves: the version is written into this build's
       # working copy (not committed) so the installer, its file name and the tag agree.

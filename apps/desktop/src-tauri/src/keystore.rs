@@ -4,7 +4,9 @@
 //! credential store (Windows Credential Manager, macOS Keychain). It never touches the
 //! database file, so a copied `vyrion.db` is unreadable on any other machine or account.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
+#[cfg(any(test, not(any(target_os = "windows", target_os = "macos"))))]
+use std::path::PathBuf;
 
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 pub const SERVICE: &str = "com.vyrncore.vyrion-erp";
