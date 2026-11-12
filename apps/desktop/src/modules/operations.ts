@@ -14,6 +14,7 @@ import {
   type LineInput,
 } from "./documents";
 import { issuing } from "./erp";
+import { allocateFefo, lotForDocument } from "./stock";
 
 type RepoOf = (key: string) => EntityRepository;
 
@@ -242,22 +243,57 @@ async function moveStock(
   const sign = type === "invoice" ? -1 : 1;
   for (const line of lines) {
     if (!line["product_id"]) continue;
-    const [item] = await tx.query<{ track_stock: number }>(
-      "SELECT track_stock FROM products WHERE id = ?",
-      [line["product_id"] as string],
+    const productId = line["product_id"] as string;
+    const [item] = await tx.query<{ track_stock: number; track_lots: number }>(
+      "SELECT track_stock, track_lots FROM products WHERE id = ?",
+      [productId],
     );
     if (!item?.track_stock) continue;
     const quantity = sign * Number(line["quantity"]);
-    await repo("stock_movement").create(tx, ctx, {
-      product_id: line["product_id"],
+    const reason =
+      `${type === "invoice" ? "Vendita" : type === "credit_note" ? "Reso" : "Acquisto"} ${doc["number"] ?? ""}`.trim();
+    const base = {
+      product_id: productId,
       date: doc["date"],
-      kind: quantity < 0 ? "out" : "in",
-      quantity,
-      unit_cost: type === "purchase_invoice" ? Number(line["unit_price"]) : 0,
-      reason:
-        `${type === "invoice" ? "Vendita" : type === "credit_note" ? "Reso" : "Acquisto"} ${doc["number"] ?? ""}`.trim(),
+      reason,
       document_id: doc.id,
-    });
+    };
+    const unitCost = type === "purchase_invoice" ? Number(line["unit_price"]) : 0;
+    if (!item.track_lots) {
+      await repo("stock_movement").create(tx, ctx, {
+        ...base,
+        kind: quantity < 0 ? "out" : "in",
+        quantity,
+        unit_cost: unitCost,
+      });
+    } else if (quantity < 0) {
+      // A sale of lot-tracked goods takes from the lots that expire first.
+      for (const pick of await allocateFefo(tx, productId, -quantity)) {
+        await repo("stock_movement").create(tx, ctx, {
+          ...base,
+          kind: "out",
+          quantity: -pick.quantity,
+          unit_cost: 0,
+          lot_id: pick.lotId,
+        });
+      }
+    } else {
+      // Goods received on a document go into a lot named after it (add expiry on the lot).
+      const lotId = await lotForDocument(
+        tx,
+        ctx,
+        repo,
+        productId,
+        String(doc["number"] ?? doc.id.slice(0, 8)),
+      );
+      await repo("stock_movement").create(tx, ctx, {
+        ...base,
+        kind: "in",
+        quantity,
+        unit_cost: unitCost,
+        lot_id: lotId,
+      });
+    }
   }
 }
 
