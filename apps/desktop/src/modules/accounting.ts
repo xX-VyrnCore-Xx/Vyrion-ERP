@@ -34,10 +34,12 @@ export const DEFAULT_ACCOUNTS: { code: string; name: string; type: string }[] = 
   { code: "310", name: "Utile (perdita) d'esercizio", type: "equity" },
   { code: "400", name: "Ricavi delle vendite e prestazioni", type: "revenue" },
   { code: "410", name: "Rimborso imposta di bollo", type: "revenue" },
+  { code: "420", name: "Differenze cambio attive", type: "revenue" },
   { code: "500", name: "Costi per acquisti e servizi", type: "expense" },
   { code: "510", name: "Costo del personale", type: "expense" },
   { code: "520", name: "Spese generali", type: "expense" },
   { code: "530", name: "Ammortamenti", type: "expense" },
+  { code: "540", name: "Differenze cambio passive", type: "expense" },
 ];
 
 export const ACC = {
@@ -52,6 +54,8 @@ export const ACC = {
   socialSecurity: "251",
   employeeTax: "252",
   personnelCost: "510",
+  fxGain: "420",
+  fxLoss: "540",
   payables: "200",
   vatDebit: "220",
   revenue: "400",

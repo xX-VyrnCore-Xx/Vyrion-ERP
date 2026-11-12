@@ -68,15 +68,47 @@ export async function outstanding(tx: SqlRunner, documentId: string): Promise<nu
   return row ? Number(row.total) - Number(row.paid) : 0;
 }
 
-async function parentDocument(
-  tx: SqlRunner,
-  id: unknown,
-): Promise<{ type: DocType; status: string; number: string | null } | null> {
-  const [row] = await tx.query<{ type: DocType; status: string; number: string | null }>(
-    "SELECT type, status, number FROM documents WHERE id = ?",
+type ParentDocument = {
+  type: DocType;
+  status: string;
+  number: string | null;
+  currency: string | null;
+  exchange_rate: number | null;
+  foreign_payable: number | null;
+};
+
+async function parentDocument(tx: SqlRunner, id: unknown): Promise<ParentDocument | null> {
+  const [row] = await tx.query<ParentDocument>(
+    "SELECT type, status, number, currency, exchange_rate, foreign_payable FROM documents WHERE id = ?",
     [id as string],
   );
   return row ?? null;
+}
+
+/**
+ * Euro value, at the document's own rate, of a payment made in the document's currency: what
+ * it clears from the open amount. Paying everything that is left in the currency clears
+ * exactly what is left in euro (no rounding residue).
+ */
+export async function foreignSettlement(
+  tx: SqlRunner,
+  documentId: string,
+  foreignAmount: number,
+): Promise<{ euro: number; foreignOpen: number }> {
+  const doc = await parentDocument(tx, documentId);
+  if (!doc || !doc.currency || doc.currency === "EUR" || !(Number(doc.exchange_rate) > 0))
+    throw new ValidationError({ foreign_amount: "Il documento è in euro" });
+  const [paid] = await tx.query<{ n: number }>(
+    "SELECT COALESCE(SUM(foreign_amount), 0) AS n FROM payments WHERE document_id = ? AND deleted_at IS NULL",
+    [documentId],
+  );
+  const foreignOpen = Number(doc.foreign_payable ?? 0) - Number(paid?.n ?? 0);
+  const open = await outstanding(tx, documentId);
+  const euro =
+    foreignAmount === foreignOpen
+      ? open
+      : Math.min(open, Math.round(foreignAmount / Number(doc.exchange_rate)));
+  return { euro, foreignOpen };
 }
 
 const document: EntityDef = {
@@ -182,6 +214,28 @@ const document: EntityDef = {
       help: "Per le cessioni a enti pubblici: l'IVA la versa l'ente, non si incassa.",
     },
     {
+      name: "currency",
+      label: "Valuta",
+      type: "text",
+      default: "EUR",
+      maxLength: 3,
+      help: "Codice di 3 lettere (EUR, USD, GBP, CHF...). I prezzi delle righe sono in questa valuta; i totali di registri e contabilità restano in euro.",
+    },
+    {
+      name: "exchange_rate",
+      label: "Cambio (unità di valuta per 1 EUR)",
+      type: "decimal",
+      min: 0,
+      help: "Es. 1,0850 se 1 EUR = 1,0850 USD. Obbligatorio per una valuta diversa dall'euro.",
+    },
+    { name: "foreign_total", label: "Totale in valuta", type: "money", readonly: true },
+    {
+      name: "foreign_payable",
+      label: "Da incassare/pagare in valuta",
+      type: "money",
+      readonly: true,
+    },
+    {
       name: "payable",
       label: "Netto da incassare / pagare",
       type: "money",
@@ -215,6 +269,25 @@ const document: EntityDef = {
     }
     if (type === "purchase_invoice" && !record["number"]) {
       throw new ValidationError({ number: "Inserisci il numero della fattura del fornitore" });
+    }
+    const currency =
+      String(record["currency"] ?? "EUR")
+        .trim()
+        .toUpperCase() || "EUR";
+    if (!/^[A-Z]{3}$/.test(currency))
+      throw new ValidationError({ currency: "Usa il codice di 3 lettere (es. USD)" });
+    record["currency"] = currency;
+    if (currency === "EUR") {
+      record["exchange_rate"] = null;
+    } else if (!(Number(record["exchange_rate"]) > 0)) {
+      throw new ValidationError({ exchange_rate: `Indica il cambio ${currency} per 1 EUR` });
+    }
+    if (before && before["status"] !== "draft" && isFiscal(type) && !issuing.has(record.id)) {
+      if (
+        before["currency"] !== record["currency"] ||
+        before["exchange_rate"] !== record["exchange_rate"]
+      )
+        throw new LockedError("Valuta e cambio di un documento emesso non si modificano");
     }
   },
 };
@@ -280,7 +353,7 @@ const payment: EntityDef = {
       list: true,
     },
     { name: "date", label: "Data", type: "date", required: true, list: true },
-    { name: "amount", label: "Importo", type: "money", required: true, min: 1, list: true },
+    { name: "amount", label: "Importo", type: "money", min: 1, list: true },
     {
       name: "method",
       label: "Metodo",
@@ -289,6 +362,20 @@ const payment: EntityDef = {
       required: true,
       default: "bank",
       list: true,
+    },
+    {
+      name: "foreign_amount",
+      label: "Importo in valuta",
+      type: "money",
+      min: 1,
+      help: "Solo per documenti in valuta estera: l'importo regolato nella valuta del documento. L'importo in euro è calcolato al cambio del documento.",
+    },
+    {
+      name: "received",
+      label: "Euro effettivamente incassati/pagati",
+      type: "money",
+      min: 1,
+      help: "Solo per documenti in valuta: la somma in euro che entra o esce dalla banca. La differenza con il valore al cambio del documento è un utile o una perdita su cambi.",
     },
     { name: "reference", label: "Riferimento", type: "text" },
   ],
@@ -300,6 +387,32 @@ const payment: EntityDef = {
     if (!doc || !isFiscal(doc.type))
       throw new ValidationError({ document_id: "Si pagano solo fatture e note di credito" });
     if (doc.status !== "issued") throw new ConflictError("Il documento non è ancora stato emesso");
+    if (doc.currency && doc.currency !== "EUR") {
+      const foreign = Number(record["foreign_amount"] ?? 0);
+      if (!(foreign > 0))
+        throw new ValidationError({
+          foreign_amount: `Indica l'importo in ${doc.currency}`,
+        });
+      const { euro, foreignOpen } = await foreignSettlement(
+        tx,
+        record["document_id"] as string,
+        foreign,
+      );
+      if (foreign > foreignOpen)
+        throw new ValidationError({
+          foreign_amount: `L'importo supera il residuo (${foreignOpen / 100} ${doc.currency})`,
+        });
+      record["amount"] = euro;
+      if (record["received"] === null || record["received"] === undefined)
+        record["received"] = euro;
+    } else if (!(Number(record["amount"]) > 0)) {
+      throw new ValidationError({ amount: "Campo obbligatorio" });
+    } else if (record["foreign_amount"] || record["received"]) {
+      throw new ValidationError({
+        foreign_amount:
+          "Importo in valuta e incassato effettivo riguardano solo i documenti in valuta",
+      });
+    }
     const open = await outstanding(tx, record["document_id"] as string);
     if (Number(record["amount"]) > open) {
       throw new ValidationError({
@@ -312,21 +425,45 @@ const payment: EntityDef = {
     if (!doc) return;
     const amount = Number(record["amount"]);
     const money = record["method"] === "cash" ? ACC.cash : ACC.bank;
+    // Credit notes and sales bring money in (a credit note, refunded, sends it out: kept as
+    // before); `amount` is the open amount cleared, `received` the cash that really moved.
     const incoming = doc.type === "invoice";
     const counterpart = doc.type === "purchase_invoice" ? ACC.payables : ACC.receivables;
+    const cash =
+      record["received"] === null || record["received"] === undefined
+        ? amount
+        : Number(record["received"]);
+    const diff = cash - amount; // > 0: more euro than the document was worth
+    if (diff !== 0) {
+      await ensureAccount(tx, ctx, repo, diff > 0 === incoming ? ACC.fxGain : ACC.fxLoss);
+    }
+    // Sales: Dr cash, Cr customers, the difference is a gain when we cash more.
+    // Purchases and credit notes: Dr suppliers/customers, Cr cash, a gain when we pay less.
+    const gainOrLoss =
+      diff === 0
+        ? []
+        : incoming
+          ? [
+              diff > 0
+                ? { account: ACC.fxGain, credit: diff }
+                : { account: ACC.fxLoss, debit: -diff },
+            ]
+          : [
+              diff < 0
+                ? { account: ACC.fxGain, credit: -diff }
+                : { account: ACC.fxLoss, debit: diff },
+            ];
     await postEntry(tx, ctx, repo, {
       date: record["date"] as string,
       description: `Pagamento ${doc.number ?? ""}`.trim(),
       source: "payment",
       sourceId: record.id,
       lines: incoming
-        ? [
-            { account: money, debit: amount },
-            { account: counterpart, credit: amount },
-          ]
+        ? [{ account: money, debit: cash }, { account: counterpart, credit: amount }, ...gainOrLoss]
         : [
             { account: counterpart, debit: amount },
-            { account: money, credit: amount },
+            { account: money, credit: cash },
+            ...gainOrLoss,
           ],
     });
   },

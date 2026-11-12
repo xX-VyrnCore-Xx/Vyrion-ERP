@@ -7,6 +7,13 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ### Added
 
+- **Fatture in valuta estera**: valuta e cambio (unità per 1 EUR) sul documento; prezzi delle righe nella
+  valuta, totali in euro convertiti parte per parte (registri IVA, scadenzario e prima nota restano in
+  euro). Incassi e pagamenti si registrano nella valuta del documento, con gli euro effettivi
+  facoltativi: la differenza rispetto al valore al cambio del documento va a «Differenze cambio
+  attive/passive» (conti 420 e 540); saldando tutto il residuo in valuta si azzera esattamente anche
+  quello in euro. Il PDF stampa nella valuta con il controvalore in euro. Migrazione 10. Non gestiti:
+  adeguamento dei cambi a fine anno, imposta di bollo sui documenti in valuta, cambi automatici.
 - **Presenze e buste paga** (Personale → Presenze e buste paga): registro delle presenze con minuti
   lavorati, import CSV dal timbratore (un giorno già presente si aggiorna), ore attese del mese
   (festivi nazionali, Pasquetta inclusa, e assenze approvate) con straordinario; buste paga come

@@ -7,6 +7,7 @@ import { getCompany } from "./company";
 import {
   computeTotals,
   extrasFromRecord,
+  foreignCurrency,
   dueDate,
   isFiscal,
   isSalesFiscal,
@@ -112,6 +113,8 @@ export function carriedOver(source: Record<string, unknown>): Record<string, unk
     "withholding_base_pct",
     "withholding_on_cassa",
     "split_payment",
+    "currency",
+    "exchange_rate",
   ];
   return Object.fromEntries(
     keys.filter((k) => source[k] !== null && source[k] !== undefined).map((k) => [k, source[k]]),
@@ -164,6 +167,8 @@ export async function saveDocument(
     withholding_amount: totals.withholding,
     total: totals.total,
     payable: totals.payable,
+    foreign_total: totals.foreign?.total ?? null,
+    foreign_payable: totals.foreign?.payable ?? null,
   };
   if (type === "quote" || type === "order") {
     // Non-fiscal documents are numbered when they are first saved.
@@ -311,7 +316,10 @@ async function moveStock(
       reason,
       document_id: doc.id,
     };
-    const unitCost = type === "purchase_invoice" ? Number(line["unit_price"]) : 0;
+    // Stock is valued in euro: a foreign-currency price is converted at the document's rate.
+    const docRate = foreignCurrency(doc) ? Number(doc["exchange_rate"]) : 1;
+    const unitCost =
+      type === "purchase_invoice" ? Math.round(Number(line["unit_price"]) / docRate) : 0;
     if (!item.track_lots) {
       await repo("stock_movement").create(tx, ctx, {
         ...base,

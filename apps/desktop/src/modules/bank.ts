@@ -132,11 +132,11 @@ const dayDiff = (a: string, b: string): number =>
 export async function candidatesFor(ws: Workspace, tx: Rec): Promise<MatchCandidate[]> {
   const amount = Number(tx["amount"]);
   const rows = (await ws.db.query(
-    `SELECT p.id, p.date, p.amount, d.number, d.type, pa.name AS party
+    `SELECT p.id, p.date, COALESCE(p.received, p.amount) AS amount, d.number, d.type, pa.name AS party
      FROM payments p
      JOIN documents d ON d.id = p.document_id
      JOIN parties pa ON pa.id = d.party_id
-     WHERE p.deleted_at IS NULL AND p.amount = ?
+     WHERE p.deleted_at IS NULL AND COALESCE(p.received, p.amount) = ?
        AND NOT EXISTS (SELECT 1 FROM bank_transactions b
                        WHERE b.payment_id = p.id AND b.deleted_at IS NULL)`,
     [Math.abs(amount)],

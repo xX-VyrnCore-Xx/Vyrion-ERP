@@ -8,7 +8,7 @@ import { useAsync, useWorkspace } from "../app/context";
 import { href } from "../app/router";
 import type { Rec } from "../data/entity";
 import { AppError, ValidationError } from "../data/errors";
-import { centsToPlain, formatMoney, parseMoney } from "../lib/money";
+import { centsToPlain, formatCurrency, formatMoney, parseMoney } from "../lib/money";
 import { getCompany } from "../modules/company";
 import {
   ALLOWED_STATUS,
@@ -195,6 +195,10 @@ function EditorBody({ type, data, go }: { type: string; data: Data; go: (to: str
       : Boolean(doc["withholding_on_cassa"]),
   );
   const [split, setSplit] = useState(Boolean(doc?.["split_payment"]));
+  const [currency, setCurrency] = useState(String(doc?.["currency"] ?? "EUR"));
+  const [rate, setRate] = useState(
+    doc?.["exchange_rate"] ? String(doc["exchange_rate"]).replace(".", ",") : "",
+  );
   const percent = (text: string): number => {
     const n = Number(text.replace(",", "."));
     return Number.isFinite(n) && n > 0 ? n : 0;
@@ -210,7 +214,10 @@ function EditorBody({ type, data, go }: { type: string; data: Data; go: (to: str
           }
         : null,
     split,
+    currency: currency.trim().toUpperCase() || "EUR",
+    rate: percent(rate) || null,
   };
+  const foreignCode = extras.currency === "EUR" ? null : extras.currency;
   const [lines, setLines] = useState<LineState[]>(() =>
     data.lines.length
       ? data.lines.map((l) => ({
@@ -232,6 +239,9 @@ function EditorBody({ type, data, go }: { type: string; data: Data; go: (to: str
 
   const parsed = toInputs(lines);
   const totals = parsed.problem ? null : computeTotals(parsed.inputs, regime, extras);
+  // A foreign-currency document shows its amounts in that currency; the euro value is below.
+  const shown = totals?.foreign ?? totals;
+  const money = (cents: number) => formatCurrency(cents, totals?.foreign ? extras.currency : "EUR");
 
   const fail = (error: unknown) => {
     if (error instanceof ValidationError) setMessage(Object.values(error.errors).join(" · "));
@@ -268,6 +278,8 @@ function EditorBody({ type, data, go }: { type: string; data: Data; go: (to: str
       withholding_base_pct: extras.withholding?.basePct ?? null,
       withholding_on_cassa: extras.withholding ? extras.withholding.onCassa : null,
       split_payment: split,
+      currency: extras.currency,
+      exchange_rate: foreignCode ? extras.rate : null,
     };
     if (type === "purchase_invoice") header["number"] = number || null;
     const saved = await ws.transact((tx, ctx, repo) =>
@@ -581,62 +593,106 @@ function EditorBody({ type, data, go }: { type: string; data: Data; go: (to: str
         </Card>
 
         <Card title="Totali">
-          {totals ? (
-            <dl className="ml-auto grid max-w-sm grid-cols-[1fr_auto] gap-x-6 gap-y-1 text-sm">
-              <dt className="text-muted">Imponibile</dt>
-              <dd className="text-right tabular-nums">{formatMoney(totals.net)}</dd>
-              {totals.breakdown
-                .filter((b) => b.rate > 0)
-                .map((b) => (
-                  <div key={b.rate} className="contents">
-                    <dt className="text-muted">
-                      IVA {b.rate}% su {formatMoney(b.base)}
+          {totals && shown ? (
+            <>
+              <dl className="ml-auto grid max-w-sm grid-cols-[1fr_auto] gap-x-6 gap-y-1 text-sm">
+                <dt className="text-muted">Imponibile</dt>
+                <dd className="text-right tabular-nums">{money(shown.net)}</dd>
+                {shown.breakdown
+                  .filter((b) => b.rate > 0)
+                  .map((b) => (
+                    <div key={b.rate} className="contents">
+                      <dt className="text-muted">
+                        IVA {b.rate}% su {money(b.base)}
+                      </dt>
+                      <dd className="text-right tabular-nums">{money(b.vat)}</dd>
+                    </div>
+                  ))}
+                {shown.cassa ? (
+                  <>
+                    <dt className="text-muted">Cassa previdenziale {extras.cassaRate}%</dt>
+                    <dd className="text-right tabular-nums">{money(shown.cassa)}</dd>
+                  </>
+                ) : null}
+                {shown.stamp ? (
+                  <>
+                    <dt className="text-muted">Imposta di bollo</dt>
+                    <dd className="text-right tabular-nums">{money(shown.stamp)}</dd>
+                  </>
+                ) : null}
+                <dt className="font-semibold text-fg">Totale documento</dt>
+                <dd className="text-right text-lg font-semibold tabular-nums text-fg">
+                  {money(shown.total)}
+                </dd>
+                {shown.withholding ? (
+                  <>
+                    <dt className="text-muted">Ritenuta d'acconto {extras.withholding?.rate}%</dt>
+                    <dd className="text-right tabular-nums">− {money(shown.withholding)}</dd>
+                  </>
+                ) : null}
+                {shown.splitVat ? (
+                  <>
+                    <dt className="text-muted">IVA versata dall'ente (split payment)</dt>
+                    <dd className="text-right tabular-nums">− {money(shown.splitVat)}</dd>
+                  </>
+                ) : null}
+                {shown.payable !== shown.total ? (
+                  <>
+                    <dt className="font-semibold text-fg">
+                      Netto da {type === "purchase_invoice" ? "pagare" : "incassare"}
                     </dt>
-                    <dd className="text-right tabular-nums">{formatMoney(b.vat)}</dd>
-                  </div>
-                ))}
-              {totals.cassa ? (
-                <>
-                  <dt className="text-muted">Cassa previdenziale {extras.cassaRate}%</dt>
-                  <dd className="text-right tabular-nums">{formatMoney(totals.cassa)}</dd>
-                </>
+                    <dd className="text-right font-semibold tabular-nums text-fg">
+                      {money(shown.payable)}
+                    </dd>
+                  </>
+                ) : null}
+              </dl>
+              {totals.foreign ? (
+                <p className="mt-2 text-right text-xs text-muted">
+                  Controvalore in euro al cambio {extras.rate?.toString().replace(".", ",")}:{" "}
+                  <span className="tabular-nums text-fg">{formatMoney(totals.payable)}</span> (è
+                  l'importo che finisce in contabilità e nei registri IVA)
+                </p>
               ) : null}
-              {totals.stamp ? (
-                <>
-                  <dt className="text-muted">Imposta di bollo</dt>
-                  <dd className="text-right tabular-nums">{formatMoney(totals.stamp)}</dd>
-                </>
-              ) : null}
-              <dt className="font-semibold text-fg">Totale documento</dt>
-              <dd className="text-right text-lg font-semibold tabular-nums text-fg">
-                {formatMoney(totals.total)}
-              </dd>
-              {totals.withholding ? (
-                <>
-                  <dt className="text-muted">Ritenuta d'acconto {extras.withholding?.rate}%</dt>
-                  <dd className="text-right tabular-nums">− {formatMoney(totals.withholding)}</dd>
-                </>
-              ) : null}
-              {totals.splitVat ? (
-                <>
-                  <dt className="text-muted">IVA versata dall'ente (split payment)</dt>
-                  <dd className="text-right tabular-nums">− {formatMoney(totals.splitVat)}</dd>
-                </>
-              ) : null}
-              {totals.payable !== totals.total ? (
-                <>
-                  <dt className="font-semibold text-fg">
-                    Netto da {type === "purchase_invoice" ? "pagare" : "incassare"}
-                  </dt>
-                  <dd className="text-right font-semibold tabular-nums text-fg">
-                    {formatMoney(totals.payable)}
-                  </dd>
-                </>
-              ) : null}
-            </dl>
+            </>
           ) : (
             <p className="text-sm text-muted">{parsed.problem}</p>
           )}
+        </Card>
+
+        <Card title="Valuta e cambio">
+          <div className="grid gap-3 text-sm sm:grid-cols-3">
+            <label className="block text-xs font-medium text-muted">
+              Valuta
+              <input
+                aria-label="Valuta"
+                className={`${CONTROL} mt-1 uppercase`}
+                maxLength={3}
+                placeholder="EUR"
+                value={currency}
+                disabled={locked}
+                onChange={(e) => setCurrency(e.target.value)}
+              />
+            </label>
+            <label className="block text-xs font-medium text-muted">
+              Cambio (unità per 1 EUR)
+              <input
+                aria-label="Cambio"
+                className={`${CONTROL} mt-1`}
+                inputMode="decimal"
+                placeholder="es. 1,0850"
+                value={rate}
+                disabled={locked || !foreignCode}
+                onChange={(e) => setRate(e.target.value)}
+              />
+            </label>
+          </div>
+          <p className="mt-2 text-xs text-muted">
+            I prezzi delle righe sono nella valuta del documento; contabilità, registri IVA e
+            scadenzario restano in euro, convertiti a questo cambio. L'imposta di bollo (importo in
+            euro) non si aggiunge ai documenti in valuta. Controlla il cambio da una fonte ufficiale
+            (es. Banca d'Italia/BCE) alla data dell'operazione.
+          </p>
         </Card>
 
         <Card title="Cassa, ritenuta e split payment">
@@ -824,15 +880,39 @@ function PaymentsCard({
   onError: (m: string | null) => void;
 }) {
   const ws = useWorkspace();
-  const [amount, setAmount] = useState(centsToPlain(open).replace(".", ","));
+  const currency = String(doc["currency"] ?? "EUR").toUpperCase();
+  const foreign = currency !== "EUR";
+  // In a foreign currency the open amount is tracked in that currency too.
+  const foreignOpen = foreign
+    ? Number(doc["foreign_payable"] ?? 0) -
+      payments.reduce((sum, p) => sum + Number(p["foreign_amount"] ?? 0), 0)
+    : 0;
+  const [amount, setAmount] = useState(
+    centsToPlain(foreign ? foreignOpen : open).replace(".", ","),
+  );
+  const [received, setReceived] = useState("");
   const [date, setDate] = useState(ws.ctx.today());
   const [method, setMethod] = useState("bank");
   const add = async () => {
     onError(null);
     const cents = parseMoney(amount);
     if (cents === null) return onError("Importo non valido");
+    const cash = received.trim() === "" ? null : parseMoney(received);
+    if (foreign && received.trim() !== "" && cash === null)
+      return onError("Importo in euro non valido");
     try {
-      await ws.create("payment", { document_id: doc.id, date, amount: cents, method });
+      await ws.create(
+        "payment",
+        foreign
+          ? {
+              document_id: doc.id,
+              date,
+              foreign_amount: cents,
+              received: cash,
+              method,
+            }
+          : { document_id: doc.id, date, amount: cents, method },
+      );
     } catch (error) {
       onError(error instanceof Error ? error.message : String(error));
     }
@@ -843,13 +923,17 @@ function PaymentsCard({
       <p className="mb-3 text-sm text-muted">
         Da {incoming ? "incassare" : "pagare"} {formatMoney(Number(doc["payable"] ?? doc["total"]))}{" "}
         · residuo <span className={open > 0 ? "text-fg" : "text-success"}>{formatMoney(open)}</span>
+        {foreign ? <> ({formatCurrency(foreignOpen, currency)})</> : null}
       </p>
       <ul className="mb-3 space-y-1 text-sm">
         {payments.map((p) => (
           <li key={p.id} className="flex items-center justify-between gap-2">
             <span>
-              {formatDay(String(p["date"]))} · {formatMoney(Number(p["amount"]))} ·{" "}
-              {PAYMENT_METHODS.find((m) => m.value === p["method"])?.label}
+              {formatDay(String(p["date"]))} ·{" "}
+              {p["foreign_amount"]
+                ? `${formatCurrency(Number(p["foreign_amount"]), currency)} → ${formatMoney(Number(p["received"] ?? p["amount"]))}`
+                : formatMoney(Number(p["amount"]))}{" "}
+              · {PAYMENT_METHODS.find((m) => m.value === p["method"])?.label}
             </span>
             <Button
               aria-label="Elimina pagamento"
@@ -874,12 +958,22 @@ function PaymentsCard({
             onChange={(e) => setDate(e.target.value)}
           />
           <input
-            aria-label="Importo pagamento"
+            aria-label={foreign ? `Importo pagamento in ${currency}` : "Importo pagamento"}
             inputMode="decimal"
             className={CONTROL}
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
           />
+          {foreign ? (
+            <input
+              aria-label="Euro effettivamente incassati"
+              inputMode="decimal"
+              placeholder="Euro effettivi (facoltativo: differenza cambio)"
+              className={CONTROL}
+              value={received}
+              onChange={(e) => setReceived(e.target.value)}
+            />
+          ) : null}
           <select
             aria-label="Metodo di pagamento"
             className={CONTROL}

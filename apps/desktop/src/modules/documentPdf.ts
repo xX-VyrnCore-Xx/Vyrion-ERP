@@ -8,7 +8,7 @@
 import type { Rec } from "../data/entity";
 import type { Workspace } from "../data/workspace";
 import { A4, Pdf } from "../lib/pdf";
-import { formatMoney } from "../lib/money";
+import { formatCurrency } from "../lib/money";
 import { formatDay } from "../ui/format";
 import { getCompany } from "./company";
 import {
@@ -53,7 +53,7 @@ export async function buildDocumentPdf(ws: Workspace, documentId: string): Promi
   const number = String(doc["number"] ?? "").trim();
   const draft = isFiscal(type) ? doc["status"] !== "issued" : false;
   const regime = (doc["tax_regime"] as "forfettario" | "ordinario" | null) ?? "ordinario";
-  const totals = computeTotals(
+  const computed = computeTotals(
     lines.map((l) => ({
       quantity: Number(l["quantity"]),
       unit_price: Number(l["unit_price"]),
@@ -64,6 +64,15 @@ export async function buildDocumentPdf(ws: Workspace, documentId: string): Promi
     regime,
     extrasFromRecord(doc),
   );
+  // A foreign-currency document prints its own currency; the euro value follows the totals.
+  const totals = computed.foreign ?? computed;
+  const currency = computed.foreign ? (computed.currency ?? "EUR") : "EUR";
+  const formatMoney = (cents: number) => formatCurrency(cents, currency);
+  // In the lines the currency is in the column heading: the amounts stay narrow.
+  const lineMoney = (cents: number) =>
+    currency === "EUR"
+      ? formatCurrency(cents, "EUR")
+      : formatCurrency(cents, currency).replace(` ${currency}`, "");
 
   const pdf = new Pdf();
   pdf.title = `${typeName} ${number || "(bozza)"}`;
@@ -182,10 +191,16 @@ export async function buildDocumentPdf(ws: Workspace, documentId: string): Promi
     pdf.text(col.desc, y - 11, "Descrizione", s);
     pdf.text(col.qty, y - 11, "Q.tà", { ...s, align: "right" });
     pdf.text(col.unit, y - 11, "U.m.", s);
-    pdf.text(col.price, y - 11, "Prezzo", { ...s, align: "right" });
+    pdf.text(col.price, y - 11, currency === "EUR" ? "Prezzo" : `Prezzo ${currency}`, {
+      ...s,
+      align: "right",
+    });
     pdf.text(col.disc, y - 11, "Sc.", { ...s, align: "right" });
     pdf.text(col.vat, y - 11, "IVA", { ...s, align: "right" });
-    pdf.text(col.amount, y - 11, "Importo", { ...s, align: "right" });
+    pdf.text(col.amount, y - 11, currency === "EUR" ? "Importo" : `Importo ${currency}`, {
+      ...s,
+      align: "right",
+    });
     y -= 22;
   };
   header();
@@ -200,7 +215,7 @@ export async function buildDocumentPdf(ws: Workspace, documentId: string): Promi
     const top = y - 9;
     pdf.text(col.qty, top, qty(Number(l["quantity"])), { size: 9, align: "right" });
     pdf.text(col.unit, top, String(l["unit"] ?? ""), { size: 9 });
-    pdf.text(col.price, top, formatMoney(Number(l["unit_price"])), { size: 9, align: "right" });
+    pdf.text(col.price, top, lineMoney(Number(l["unit_price"])), { size: 9, align: "right" });
     pdf.text(col.disc, top, Number(l["discount"] ?? 0) ? pct(Number(l["discount"])) : "", {
       size: 9,
       align: "right",
@@ -209,7 +224,7 @@ export async function buildDocumentPdf(ws: Workspace, documentId: string): Promi
       size: 9,
       align: "right",
     });
-    pdf.text(col.amount, top, formatMoney(Number(l["net_amount"] ?? 0)), {
+    pdf.text(col.amount, top, lineMoney(Number(l["net_amount"] ?? 0)), {
       size: 9,
       align: "right",
     });
@@ -257,6 +272,13 @@ export async function buildDocumentPdf(ws: Workspace, documentId: string): Promi
       formatMoney(totals.payable),
       true,
     ]);
+  if (computed.foreign) {
+    rows.push([
+      `Controvalore in euro (cambio ${String(doc["exchange_rate"]).replace(".", ",")})`,
+      formatCurrency(computed.payable, "EUR"),
+      false,
+    ]);
+  }
   ensure(rows.length * 15 + 40);
   y -= 14;
   const labelX = 330;
