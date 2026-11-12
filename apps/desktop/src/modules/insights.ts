@@ -165,6 +165,33 @@ const SOURCES: Source[] = [
     }),
   },
   {
+    // An appointment with a reminder, from the moment the reminder is due until it starts.
+    sql: q`SELECT a.id, a.title, a.starts_at, a.reminder_minutes FROM appointments a
+           WHERE a.deleted_at IS NULL AND a.reminder_minutes IS NOT NULL
+             AND a.starts_at > ? AND (strftime('%s', a.starts_at) - strftime('%s', ?)) <= a.reminder_minutes * 60`,
+    params: (_today, now) => [now, now],
+    build: (r) => ({
+      severity: "warning",
+      title: `Tra poco: ${r["title"]}`,
+      detail: `Alle ${new Date(String(r["starts_at"])).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })}`,
+      entity: "appointment",
+      id: String(r["id"]),
+    }),
+  },
+  {
+    sql: q`SELECT t.id, t.title, t.remind_on FROM tasks t
+           WHERE t.deleted_at IS NULL AND t.status IN ('todo', 'doing')
+             AND t.remind_on IS NOT NULL AND t.remind_on <= ?`,
+    params: (today) => [today],
+    build: (r) => ({
+      severity: "warning",
+      title: `Promemoria: ${r["title"]}`,
+      detail: `Da ricordare dal ${r["remind_on"]}`,
+      entity: "task",
+      id: String(r["id"]),
+    }),
+  },
+  {
     sql: q`SELECT a.id, a.title, a.starts_at FROM appointments a WHERE a.deleted_at IS NULL AND date(a.starts_at) = ?`,
     params: (today) => [today],
     build: (r) => ({

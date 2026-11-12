@@ -1,5 +1,5 @@
 import type { EntityDef, Rec } from "../data/entity";
-import { ValidationError } from "../data/errors";
+import { LockedError, ValidationError } from "../data/errors";
 import { iban, opts, PRIORITY, taxCode, vatNumber } from "./common";
 
 export const PARTY_KINDS = opts([
@@ -89,6 +89,13 @@ const party: EntityDef = {
     { name: "province", label: "Provincia", type: "text", maxLength: 2 },
     { name: "country", label: "Paese", type: "text", default: "IT", maxLength: 2 },
     iban(),
+    {
+      name: "hourly_rate",
+      label: "Tariffa oraria (assistenza)",
+      type: "money",
+      min: 0,
+      help: "Usata per fatturare le ore degli interventi sui ticket.",
+    },
     {
       name: "payment_terms_days",
       label: "Pagamento (giorni)",
@@ -274,6 +281,15 @@ const appointment: EntityDef = {
     { name: "ends_at", label: "Fine", type: "datetime" },
     { name: "party_id", label: "Anagrafica", type: "ref", ref: "party" },
     { name: "location", label: "Luogo", type: "text" },
+    {
+      name: "reminder_minutes",
+      label: "Promemoria (minuti prima)",
+      type: "integer",
+      min: 0,
+      max: 20160,
+      help: "Es. 15, 60 o 1440 (un giorno): compare tra gli avvisi prima dell'appuntamento.",
+    },
+    { name: "ics_uid", label: "Identificativo calendario", type: "text", hidden: true },
     { name: "notes", label: "Note", type: "longtext" },
   ],
   beforeSave: ({ record }) => {
@@ -312,6 +328,12 @@ const task: EntityDef = {
       list: true,
     },
     { name: "due_date", label: "Scadenza", type: "date", list: true },
+    {
+      name: "remind_on",
+      label: "Ricordamelo il",
+      type: "date",
+      help: "Da quel giorno compare tra gli avvisi finché l'attività non è completata.",
+    },
     { name: "party_id", label: "Anagrafica", type: "ref", ref: "party" },
     { name: "completed_at", label: "Completata il", type: "date", readonly: true },
     { name: "notes", label: "Note", type: "longtext" },
@@ -459,7 +481,28 @@ const intervention: EntityDef = {
       list: true,
     },
     { name: "notes", label: "Descrizione", type: "longtext", list: true },
+    {
+      name: "document_id",
+      label: "Fatturato nel documento",
+      type: "ref",
+      ref: "document",
+      readonly: true,
+    },
   ],
+  // Once billed, an intervention is part of an invoice and stays as it was; only the link to a
+  // deleted draft can be cleared.
+  beforeSave: ({ mode, before, record }) => {
+    if (mode !== "update" || !before?.["document_id"]) return;
+    const changed = ["ticket_id", "performed_on", "minutes", "notes"].some(
+      (name) => before[name] !== record[name],
+    );
+    if (changed)
+      throw new LockedError("L'intervento è già in una fattura: modificala o eliminala da lì");
+  },
+  beforeDelete: ({ record }) => {
+    if (record["document_id"])
+      throw new LockedError("L'intervento è già in una fattura: eliminala prima");
+  },
 };
 
 export const CRM_ENTITIES: EntityDef[] = [

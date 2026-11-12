@@ -119,6 +119,7 @@ const SETTINGS: CatalogItem[] = [
 
 /** What else people may call a page. */
 const EXTRA_KEYWORDS: Record<string, string[]> = {
+  "billing-hours": ["fatturare ore", "ore assistenza", "interventi da fatturare", "tariffa oraria"],
   closing: ["chiudere anno", "bilancio", "utile", "perdita", "stato patrimoniale", "fine anno"],
   "fixed-assets": [
     "ammortamento",
@@ -185,7 +186,18 @@ const EXTRA_KEYWORDS: Record<string, string[]> = {
   inventory: ["giacenze", "scorte", "magazzino", "sotto scorta", "quantità"],
   monitor: ["ping", "uptime", "raggiungibilità", "controlli di rete", "stato dei servizi"],
   pipeline: ["trattative", "lead", "opportunità per fase", "vendite"],
-  calendar: ["appuntamenti", "riunioni", "agenda del mese", "calendario"],
+  calendar: [
+    "appuntamenti",
+    "riunioni",
+    "agenda del mese",
+    "calendario",
+    "ics",
+    "esporta calendario",
+    "importa calendario",
+    "outlook",
+    "google calendar",
+    "promemoria",
+  ],
 };
 
 /** Builds the list of pages and quick actions from the menu and from the kinds of record. */
