@@ -7,6 +7,10 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ### Added
 
+- **Backend: codici di recupero rigenerabili** (`POST /auth/2fa/recovery-codes`, con password e codice valido; i
+  vecchi vengono invalidati; voce di audit) e **2FA obbligatorio per gli amministratori** come opzione
+  (`REQUIRE_2FA_FOR_ADMINS`, spenta di default): l'amministratore senza 2FA può solo attivarlo, cambiare password e
+  uscire (403 `second_factor_required` sul resto; `GET /auth/me` lo segnala). 6 test nuovi, 268 in totale.
 - **Adeguamento cambi a fine anno** (Prima nota → Adeguamento cambi): i crediti e debiti in valuta estera ancora
   aperti al 31 dicembre (al netto degli incassi e pagamenti fino a quella data) sono rivalutati al cambio
   indicato per ogni valuta. Differenza tra valore al cambio e valore in libro: utili e perdite su cambi da

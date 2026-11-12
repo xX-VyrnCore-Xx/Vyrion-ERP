@@ -58,6 +58,12 @@ class ForbiddenError(AppError):
     code = "forbidden"
 
 
+class SecondFactorRequiredError(ForbiddenError):
+    """An administrator must turn on two-factor authentication before doing anything else."""
+
+    code = "second_factor_required"
+
+
 class AuthenticationError(AppError):
     """Missing, invalid, expired or revoked credentials. Never says which."""
 

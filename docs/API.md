@@ -45,7 +45,13 @@ Ogni risposta riporta `X-Request-ID` (se il client ne invia uno valido viene man
 | --- | --- |
 | `POST /auth/2fa/setup` | Genera il seme e l'URI `otpauth://` (da mostrare come QR). Non attiva ancora nulla |
 | `POST /auth/2fa/enable` | Conferma con un codice, attiva il 2FA e restituisce i **10 codici di recupero (una sola volta)** |
+| `POST /auth/2fa/recovery-codes` | Richiede `password` e `code` (come per disattivare il 2FA): **sostituisce** i codici di recupero con 10 nuovi (una sola volta); i vecchi smettono di funzionare |
 | `POST /auth/2fa/disable` | Richiede `password` e `code` |
+
+Con `REQUIRE_2FA_FOR_ADMINS=true` un account amministratore (ruolo `super_admin` o qualunque permesso
+`:admin`) senza 2FA riceve **403 `second_factor_required`** su tutto tranne `/auth/me`, `/auth/logout`,
+`/auth/logout-all`, `/auth/2fa/setup`, `/auth/2fa/enable` e `/auth/password/change`;
+`GET /auth/me` indica `second_factor_required: true`.
 
 ### Esito degli errori di accesso
 

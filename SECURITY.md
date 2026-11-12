@@ -45,7 +45,8 @@ tramite issue. Non includere dati reali o credenziali nelle segnalazioni.
 - **TOTP** (RFC 6238, verificato con il vettore di prova dello standard), tolleranza di un passo.
 - Il **seme è cifrato** nel database (Fernet, autenticato). Lo stesso codice **non si può usare due
   volte**, nemmeno in condizioni di concorrenza.
-- **10 codici di recupero** monouso, mostrati una sola volta e conservati solo come hash.
+- **10 codici di recupero** monouso, mostrati una sola volta e conservati solo come hash; si possono
+  rigenerare (password e codice valido) e i vecchi smettono di funzionare.
 - Dopo la password corretta si riceve una **sfida** (5 minuti, 5 tentativi): finché non è superata
   non esiste alcun token. Un amministratore può azzerare il 2FA di chi ha perso il telefono; ciò
   chiude anche le sue sessioni.
@@ -131,10 +132,11 @@ tramite issue. Non includere dati reali o credenziali nelle segnalazioni.
 
 Non sono difetti nascosti: sono decisioni prese e da conoscere.
 
-- **Il 2FA non è obbligatorio**, nemmeno per gli amministratori. Si può imporlo come regola in
-  una milestone successiva; fino ad allora è consigliato attivarlo per gli account con permessi
-  `admin`.
-- **Rigenerare i codici di recupero** non è ancora possibile senza disattivare e riattivare il 2FA.
+- **Il 2FA è obbligatorio per gli amministratori solo se lo si attiva** (`REQUIRE_2FA_FOR_ADMINS=true`,
+  spento di default per non chiudere fuori chi non ha ancora l'app): un account amministratore senza
+  2FA può solo attivarlo, cambiare password e uscire. Per tutti gli altri resta facoltativo.
+- **Codici di recupero:** si possono rigenerare (`POST /auth/2fa/recovery-codes`, con password e un
+  codice valido); i vecchi vengono invalidati e l'azione è nel registro di audit.
 - **Permessi per singolo record** non ancora implementati: nessun modulo ne ha bisogno finché non
   esistono i moduli (milestone 7–9). L'infrastruttura (permessi per modulo e azione, concessioni
   dirette) è pronta; il controllo sul singolo record si aggiunge con il primo modulo che lo usa.

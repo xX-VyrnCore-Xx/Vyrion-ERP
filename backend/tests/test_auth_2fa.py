@@ -320,3 +320,119 @@ async def test_probing_the_disable_endpoint_from_a_stolen_session_ends_every_ses
         )
     assert (await api.client.get(f"{BASE}/auth/me", headers=bearer(tokens))).status_code == 401
     assert (await post_login(api, EMAIL)).status_code == 429
+
+
+# --- new recovery codes -----------------------------------------------------------------
+
+
+async def test_regenerating_recovery_codes_replaces_the_old_ones(
+    api: Api, fake_clock: FakeClock
+) -> None:
+    secret, old_codes = await user_with_2fa(api, fake_clock)
+    tokens = await login_with_2fa(api, secret, fake_clock)
+    response = await api.client.post(
+        f"{BASE}/auth/2fa/recovery-codes",
+        headers=bearer(tokens),
+        json={"password": PASSWORD, "code": totp_now(secret)},
+    )
+    assert response.status_code == 200, response.text
+    assert response.headers["cache-control"] == "no-store"
+    new_codes = response.json()["recovery_codes"]
+    assert len(new_codes) == len(old_codes) == 10
+    assert set(new_codes).isdisjoint(old_codes)
+    user = await fresh_user(api, EMAIL)
+    stored = (
+        await api.session.execute(select(func.count()).where(RecoveryCode.user_id == user.id))
+    ).scalar_one()
+    assert stored == 10
+    assert "auth.recovery_codes_regenerated" in await audit_actions(api, entity_id=user.id)
+
+    # an old code no longer opens the second step, a new one does
+    fake_clock.advance(seconds=30)
+    challenge = await start_login(api)
+    assert (await second_factor(api, challenge, old_codes[0])).status_code != 200
+    challenge = await start_login(api)
+    assert (await second_factor(api, challenge, new_codes[0])).status_code == 200
+
+
+async def test_regenerating_needs_the_password_and_a_valid_code(
+    api: Api, fake_clock: FakeClock
+) -> None:
+    secret, old_codes = await user_with_2fa(api, fake_clock)
+    tokens = await login_with_2fa(api, secret, fake_clock)
+    for body in (
+        {"password": "not-the-password-0", "code": totp_now(secret)},
+        {"password": PASSWORD, "code": wrong_code(secret)},
+    ):
+        response = await api.client.post(
+            f"{BASE}/auth/2fa/recovery-codes", headers=bearer(tokens), json=body
+        )
+        assert response.status_code == 422, response.text
+    user = await fresh_user(api, EMAIL)
+    # nothing was replaced
+    ok = await api.session.execute(select(func.count()).where(RecoveryCode.user_id == user.id))
+    assert ok.scalar_one() == len(old_codes)
+
+
+async def test_regenerating_without_2fa_is_refused(api: Api) -> None:
+    await make_user(api, EMAIL, roles=["employee"])
+    tokens = await login(api, EMAIL)
+    response = await api.client.post(
+        f"{BASE}/auth/2fa/recovery-codes",
+        headers=bearer(tokens),
+        json={"password": PASSWORD, "code": "123456"},
+    )
+    assert response.status_code == 409
+    assert error_code(response) == "conflict"
+
+
+async def login_with_2fa(api: Api, secret: str, fake_clock: FakeClock) -> dict[str, object]:
+    """Sign in through both steps with the authenticator code of the current time step."""
+    challenge = await start_login(api)
+    response = await second_factor(api, challenge, totp_now(secret))
+    assert response.status_code == 200, response.text
+    fake_clock.advance(seconds=30)  # the next code (a new step) must be usable for the action
+    tokens: dict[str, object] = response.json()
+    return tokens
+
+
+# --- mandatory 2FA for administrators ---------------------------------------------------
+
+
+@pytest.mark.parametrize("api_settings", [{"require_2fa_for_admins": True}])
+async def test_an_admin_without_2fa_can_only_turn_it_on(api: Api) -> None:
+    await make_user(api, EMAIL, roles=["super_admin"])
+    tokens = await login(api, EMAIL)
+    headers = bearer(tokens)
+
+    me = await api.client.get(f"{BASE}/auth/me", headers=headers)
+    assert me.status_code == 200
+    assert me.json()["second_factor_required"] is True
+
+    for path in ("/users", "/roles", "/company", "/audit-log"):
+        blocked = await api.client.get(f"{BASE}{path}", headers=headers)
+        assert blocked.status_code == 403, path
+        assert error_code(blocked) == "second_factor_required"
+
+    secret, _ = await enable_2fa(api, tokens)  # the way out stays open
+    me = await api.client.get(f"{BASE}/auth/me", headers=headers)
+    assert me.json()["second_factor_required"] is False
+    assert (await api.client.get(f"{BASE}/users", headers=headers)).status_code == 200
+    assert secret
+
+
+@pytest.mark.parametrize("api_settings", [{"require_2fa_for_admins": True}])
+async def test_the_rule_does_not_touch_other_accounts(api: Api) -> None:
+    await make_user(api, EMAIL, roles=["employee"])
+    tokens = await login(api, EMAIL)
+    me = await api.client.get(f"{BASE}/auth/me", headers=bearer(tokens))
+    assert me.json()["second_factor_required"] is False
+    assert (await api.client.get(f"{BASE}/company", headers=bearer(tokens))).status_code != 403
+
+
+async def test_the_rule_is_off_by_default(api: Api) -> None:
+    await make_user(api, EMAIL, roles=["super_admin"])
+    tokens = await login(api, EMAIL)
+    me = await api.client.get(f"{BASE}/auth/me", headers=bearer(tokens))
+    assert me.json()["second_factor_required"] is False
+    assert (await api.client.get(f"{BASE}/users", headers=bearer(tokens))).status_code == 200

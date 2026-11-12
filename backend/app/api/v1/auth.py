@@ -7,7 +7,7 @@ password with a one-time token. Everything else needs a valid session.
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Query, Response, status
+from fastapi import APIRouter, Query, Request, Response, status
 
 from app.api.deps import (
     AuthServiceDep,
@@ -24,6 +24,7 @@ from app.schemas.auth import (
     MeResponse,
     PasswordChangeRequest,
     PasswordSetupRequest,
+    RecoveryCodesRequest,
     RecoveryCodesResponse,
     RefreshRequest,
     RevokedResponse,
@@ -118,12 +119,18 @@ async def logout_all(
 
 
 @router.get("/me", response_model=MeResponse)
-async def me(context: CurrentContext) -> MeResponse:
+async def me(context: CurrentContext, request: Request) -> MeResponse:
+    required = (
+        request.app.state.settings.require_2fa_for_admins
+        and context.is_administrator
+        and not context.user.totp_enabled
+    )
     return MeResponse(
         user=UserRead.model_validate(context.user),
         permissions=sorted(context.permissions),
         session_id=context.session_id,
         mfa_verified=context.mfa_verified,
+        second_factor_required=required,
     )
 
 
@@ -206,6 +213,23 @@ async def totp_enable(
 ) -> RecoveryCodesResponse:
     response.headers["Cache-Control"] = "no-store"
     codes = await auth.enable_totp(session, context=context, code=body.code)
+    await session.commit()
+    return RecoveryCodesResponse(recovery_codes=codes)
+
+
+@router.post("/2fa/recovery-codes", response_model=RecoveryCodesResponse)
+async def recovery_codes(
+    body: RecoveryCodesRequest,
+    context: CurrentContext,
+    session: SessionDep,
+    auth: AuthServiceDep,
+    response: Response,
+) -> RecoveryCodesResponse:
+    """Replace the recovery codes with ten new ones (the old ones stop working)."""
+    response.headers["Cache-Control"] = "no-store"
+    codes = await auth.regenerate_recovery_codes(
+        session, context=context, password=body.password, code=body.code
+    )
     await session.commit()
     return RecoveryCodesResponse(recovery_codes=codes)
 

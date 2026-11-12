@@ -729,6 +729,41 @@ class AuthService:
         )
         return codes
 
+    async def regenerate_recovery_codes(
+        self, session: AsyncSession, *, context: AuthContext, password: str, code: str
+    ) -> list[str]:
+        """Ten new recovery codes, for someone who used some up or lost the sheet.
+
+        It asks for the password and a current code, like switching 2FA off: a stolen session
+        alone must not be able to mint codes that bypass the authenticator app.
+        """
+        user, client = context.user, context.client
+        await self._check_ip_rate(client)
+        if not user.totp_enabled or user.totp_secret_encrypted is None:
+            raise ConflictError("Two-factor authentication is not enabled")
+        password_ok = await self.passwords.verify_async(user.password_hash, password)
+        second_ok, _ = await self._check_second_factor(session, user, code, clock.utcnow())
+        if not (password_ok and second_ok):
+            await self._register_failure(
+                session,
+                email=user.email,
+                user=user,
+                reason="2fa_recovery_invalid",
+                client=client,
+                end_sessions_on_lock=True,
+            )
+            raise InvalidInputError("Password or code is not correct")
+        codes = await self._replace_recovery_codes(session, user)
+        await session.flush()
+        audit.record(
+            session,
+            context.audit(),
+            action="auth.recovery_codes_regenerated",
+            entity_type="user",
+            entity_id=user.id,
+        )
+        return codes
+
     async def disable_totp(
         self, session: AsyncSession, *, context: AuthContext, password: str, code: str
     ) -> None:
