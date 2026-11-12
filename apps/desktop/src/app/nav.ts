@@ -13,6 +13,7 @@ import {
   Network,
   Package,
   Radar,
+  Server,
   ScrollText,
   ShieldAlert,
   Users,
@@ -201,6 +202,29 @@ export const NAV: NavSection[] = [
         ],
       },
       { label: "Documentazione", icon: BookOpen, to: e("tech_doc") },
+    ],
+  },
+  {
+    title: "Server",
+    items: [
+      {
+        label: "Console server",
+        icon: Server,
+        to: "server",
+        children: [
+          {
+            label: "Stato e sincronizzazione",
+            to: "server/stato",
+            match: ["server"],
+            fallback: true,
+          },
+          { label: "Utenti", to: "server/utenti" },
+          { label: "Ruoli e permessi", to: "server/ruoli" },
+          { label: "Registro attività", to: "server/attivita" },
+          { label: "Sessioni e accessi", to: "server/sessioni" },
+          { label: "Azienda", to: "server/azienda" },
+        ],
+      },
     ],
   },
 ];

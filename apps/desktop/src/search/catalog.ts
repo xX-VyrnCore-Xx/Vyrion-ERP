@@ -115,18 +115,38 @@ const SETTINGS: CatalogItem[] = [
       "archivio",
     ],
   },
-  {
-    id: "page:server",
-    kind: "page",
-    title: "Stato del server",
-    subtitle: "Sistema",
-    to: "server",
-    keywords: ["raggiungibile", "vpn", "online", "connessione", "latenza"],
-  },
 ];
 
 /** What else people may call a page. */
 const EXTRA_KEYWORDS: Record<string, string[]> = {
+  server: [
+    "raggiungibile",
+    "online",
+    "offline",
+    "connessione",
+    "latenza",
+    "vpn",
+    "gestione server",
+  ],
+  "server/stato": [
+    "sincronizza",
+    "conflitti",
+    "coda",
+    "modifiche da inviare",
+    "aggiornamento dati",
+  ],
+  "server/utenti": [
+    "account",
+    "invita",
+    "disattiva",
+    "password",
+    "collaboratori",
+    "dipendenti accesso",
+  ],
+  "server/ruoli": ["permessi", "autorizzazioni", "accessi"],
+  "server/attivita": ["audit", "log", "cronologia", "chi ha fatto"],
+  "server/sessioni": ["dispositivi", "disconnetti", "login", "accessi recenti"],
+  "server/azienda": ["ragione sociale", "partita iva", "dati azienda"],
   "": ["home", "dashboard", "avvisi", "indicatori", "riepilogo", "oggi"],
   deadlines: [
     "fatture scadute",

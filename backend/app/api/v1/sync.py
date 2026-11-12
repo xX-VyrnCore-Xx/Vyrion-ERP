@@ -4,7 +4,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 
 from app.api.deps import SessionDep, require
-from app.schemas.sync import PullResponse, PushRequest, PushResponse
+from app.schemas.sync import PullResponse, PushRequest, PushResponse, SyncStatusResponse
 from app.services import sync as sync_service
 from app.services.authz import AuthContext
 
@@ -34,3 +34,9 @@ async def pull(
 ) -> PullResponse:
     """Records changed by other devices since the cursor ``after``."""
     return await sync_service.pull(session, device_id=device_id, after=after, limit=limit)
+
+
+@router.get("/status", response_model=SyncStatusResponse)
+async def sync_status(_: PullAllowed, session: SessionDep) -> SyncStatusResponse:
+    """Totals and per-device activity for the administration console."""
+    return await sync_service.status(session)

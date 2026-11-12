@@ -19,12 +19,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.sync import SyncChange, SyncRecord
 from app.schemas.sync import (
+    DeviceActivity,
     OperationResult,
     PullChange,
     PullResponse,
     PushResponse,
     ServerRecord,
     SyncOperation,
+    SyncStatusResponse,
 )
 
 # Entities that must never be merged automatically. They match the desktop modules.
@@ -282,4 +284,37 @@ async def pull(
         cursor=cursor,
         has_more=has_more,
         server_time=(await session.execute(select(func.now()))).scalar_one(),
+    )
+
+
+async def status(session: AsyncSession) -> SyncStatusResponse:
+    """Totals and per-device activity (devices that pushed changes), most recent first."""
+    head, changes, last = (
+        await session.execute(
+            select(
+                func.coalesce(func.max(SyncChange.seq), 0),
+                func.count(),
+                func.max(SyncChange.applied_at),
+            )
+        )
+    ).one()
+    records = (
+        await session.execute(
+            select(func.count()).select_from(SyncRecord).where(SyncRecord.deleted.is_(False))
+        )
+    ).scalar_one()
+    rows = (
+        await session.execute(
+            select(SyncChange.device_id, func.count(), func.max(SyncChange.applied_at))
+            .group_by(SyncChange.device_id)
+            .order_by(func.max(SyncChange.applied_at).desc())
+            .limit(50)
+        )
+    ).all()
+    return SyncStatusResponse(
+        head_seq=int(head),
+        records=int(records),
+        changes=int(changes),
+        last_change_at=last,
+        devices=[DeviceActivity(device_id=d, changes=int(n), last_seen_at=t) for d, n, t in rows],
     )

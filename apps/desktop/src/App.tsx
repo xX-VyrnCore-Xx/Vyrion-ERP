@@ -58,8 +58,8 @@ const ReportsPage = lazy(() =>
 const SettingsPage = lazy(() =>
   import("./pages/SettingsPage").then((m) => ({ default: m.SettingsPage })),
 );
-const SystemStatusPage = lazy(() =>
-  import("./pages/SystemStatusPage").then((m) => ({ default: m.SystemStatusPage })),
+const ServerConsole = lazy(() =>
+  import("./server/ServerConsole").then((m) => ({ default: m.ServerConsole })),
 );
 
 const PAGES = [
@@ -196,13 +196,7 @@ function Shell({ volatile }: { volatile: boolean }) {
   else if (section === "reports") page = <ReportsPage />;
   else if (section === "monitor") page = <MonitorPage />;
   else if (section === "server")
-    page = (
-      <SystemStatusPage
-        serverUrl={serverUrl}
-        status={status}
-        onOpenSettings={() => go("settings")}
-      />
-    );
+    page = <ServerConsole tab={a} serverUrl={serverUrl} status={status} go={go} />;
   else if (section === "settings")
     page = (
       <SettingsPage

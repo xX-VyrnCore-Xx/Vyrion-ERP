@@ -99,3 +99,19 @@ class PullResponse(BaseModel):
     cursor: int
     has_more: bool
     server_time: datetime
+
+
+class DeviceActivity(BaseModel):
+    device_id: uuid.UUID
+    changes: int
+    last_seen_at: datetime
+
+
+class SyncStatusResponse(BaseModel):
+    """What the server holds, for the administration console."""
+
+    head_seq: int
+    records: int
+    changes: int
+    last_change_at: datetime | None
+    devices: list[DeviceActivity]
