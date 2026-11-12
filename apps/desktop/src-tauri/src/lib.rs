@@ -94,6 +94,11 @@ const MAX_EXPORT_BYTES: usize = 64 * 1024 * 1024;
 /// Writes `content` next to `dest` first and renames it, so a failure never leaves a
 /// half-written file where the person chose to save.
 fn write_text(dest: &Path, content: &str) -> Result<(), String> {
+    write_bytes(dest, content.as_bytes())
+}
+
+/// The same for binary content (a ZIP package).
+fn write_bytes(dest: &Path, content: &[u8]) -> Result<(), String> {
     if content.len() > MAX_EXPORT_BYTES {
         return Err("the export is too large".into());
     }
@@ -111,6 +116,12 @@ fn write_text(dest: &Path, content: &str) -> Result<(), String> {
 async fn export_text(dest: String, content: String) -> Result<(), String> {
     let dest = destination(&dest)?;
     blocking(move || write_text(&dest, &content)).await
+}
+
+#[tauri::command]
+async fn export_bytes(dest: String, content: Vec<u8>) -> Result<(), String> {
+    let dest = destination(&dest)?;
+    blocking(move || write_bytes(&dest, &content)).await
 }
 
 #[derive(Debug, Serialize)]
@@ -338,6 +349,7 @@ pub fn run() {
             quit_app,
             restart_app,
             export_text,
+            export_bytes,
             db_status,
             db_query,
             db_execute,
@@ -384,6 +396,17 @@ mod tests {
         assert_eq!(std::fs::read_to_string(&dest).unwrap(), "a;b\r\n1;2\r\n");
         write_text(&dest, "x").unwrap();
         assert_eq!(std::fs::read_to_string(&dest).unwrap(), "x");
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
+    }
+
+    #[test]
+    fn binary_exports_keep_every_byte() {
+        let dir = tempfile::tempdir().unwrap();
+        let dest = dir.path().join("package.zip");
+        // Bytes that are not valid UTF-8 (a ZIP has plenty) must arrive unchanged.
+        let bytes: Vec<u8> = (0..=255u8).chain([0xff, 0xfe, 0x00, 0x80]).collect();
+        write_bytes(&dest, &bytes).unwrap();
+        assert_eq!(std::fs::read(&dest).unwrap(), bytes);
         assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
     }
 

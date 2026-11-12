@@ -7,6 +7,11 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ### Added
 
+- **Esportazione per il commercialista** (Report → Esportazione per il commercialista): un archivio ZIP
+  per anno con piano dei conti, prima nota (storni e chiusure indicati), bilancio di verifica, registri
+  IVA di vendite e acquisti, liquidazioni, ritenute, crediti e debiti aperti a fine anno, prospetti paga
+  e un LEGGIMI; ogni file si scarica anche da solo. Lo ZIP è scritto senza dipendenze e verificato con
+  `unzip -t`. Nuovo comando nativo `export_bytes` per salvare file binari.
 - **Fatture in valuta estera**: valuta e cambio (unità per 1 EUR) sul documento; prezzi delle righe nella
   valuta, totali in euro convertiti parte per parte (registri IVA, scadenzario e prima nota restano in
   euro). Incassi e pagamenti si registrano nella valuta del documento, con gli euro effettivi
