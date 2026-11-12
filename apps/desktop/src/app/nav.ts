@@ -91,6 +91,7 @@ export const NAV: NavSection[] = [
         children: [
           { label: "Ticket", to: e("ticket") },
           { label: "Interventi", to: e("ticket_intervention") },
+          { label: "Ore da fatturare", to: "billing-hours" },
         ],
       },
     ],

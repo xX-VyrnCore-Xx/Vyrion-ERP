@@ -121,5 +121,18 @@ export function businessMigrations(): Migration[] {
         `CREATE INDEX ix_bank_transactions_updated ON bank_transactions(updated_at)`,
       ],
     },
+    {
+      id: 6,
+      name: "crm-reminders-calendar-billing",
+      statements: [
+        `ALTER TABLE parties ADD COLUMN hourly_rate INTEGER`,
+        `ALTER TABLE appointments ADD COLUMN reminder_minutes INTEGER`,
+        `ALTER TABLE appointments ADD COLUMN ics_uid TEXT`,
+        `CREATE INDEX ix_appointments_ics_uid ON appointments(ics_uid) WHERE deleted_at IS NULL`,
+        `ALTER TABLE tasks ADD COLUMN remind_on TEXT`,
+        `ALTER TABLE ticket_interventions ADD COLUMN document_id TEXT REFERENCES documents(id)`,
+        `CREATE INDEX ix_ticket_interventions_document_id ON ticket_interventions(document_id) WHERE deleted_at IS NULL`,
+      ],
+    },
   ];
 }

@@ -145,6 +145,13 @@ const document: EntityDef = {
   ],
   // A draft takes its lines with it.
   beforeDelete: async ({ tx, ctx, repo, record }) => {
+    // Hours billed on a draft that is deleted become billable again.
+    const billed = (await tx.query(
+      "SELECT id FROM ticket_interventions WHERE document_id = ? AND deleted_at IS NULL",
+      [record.id],
+    )) as unknown as { id: string }[];
+    for (const row of billed)
+      await repo("ticket_intervention").update(tx, ctx, row.id, { document_id: null });
     const lines = repo("document_line");
     const own = await lines.list(tx, { filters: { document_id: record.id }, limit: 1000 });
     for (const line of own.rows) await lines.remove(tx, ctx, line.id);

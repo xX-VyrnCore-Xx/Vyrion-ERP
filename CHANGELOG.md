@@ -7,6 +7,20 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ### Added
 
+- **Promemoria**: sugli appuntamenti «Promemoria (minuti prima)» e sulle attività «Ricordamelo il»
+  generano avvisi nell'app (campanella e Panoramica) quando è il momento; non ci sono notifiche di
+  sistema ad app chiusa.
+- **Calendario .ics**: «Esporta .ics» e «Importa .ics» nel Calendario (compatibile con Outlook,
+  Google e Apple Calendar). L'esportazione include allarmi e attività; l'importazione legge UTC,
+  fusi orari, ora locale e giornate intere e non crea doppioni (si può riimportare lo stesso file).
+  Gli eventi ricorrenti si importano solo alla prima data.
+- **Ore da fatturare** (Assistenza → Ore da fatturare): gli interventi sui ticket non ancora in
+  fattura diventano una bozza di fattura per cliente (una riga per ticket, in ore), con tariffa
+  oraria salvata sul cliente e arrotondamento a 15/30/60 minuti. Gli interventi fatturati non si
+  modificano né si fatturano di nuovo; eliminando la bozza tornano fatturabili.
+
+### Added
+
 - **Chiusura dell'esercizio** (Prima nota → Chiusura esercizio): sposta utile o perdita nel
   patrimonio netto, blocca le registrazioni con date dell'anno chiuso, si chiude un anno alla
   volta in ordine e si può riaprire l'ultimo. Il conto economico dell'anno chiuso resta leggibile.

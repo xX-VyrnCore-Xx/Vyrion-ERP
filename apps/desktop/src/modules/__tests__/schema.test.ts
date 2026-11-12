@@ -52,6 +52,8 @@ describe("database schema", () => {
       entities: ALL_ENTITIES,
       migrations: businessMigrations,
     });
+    // every later migration kept the rows that were there
+    expect((await ws.get("product", "p1"))?.["track_lots"] ?? null).toBeNull();
     const [row] = await ws.db.query("SELECT quantity, warehouse_id, lot_id FROM stock_movements");
     expect(row).toEqual({ quantity: 10, warehouse_id: null, lot_id: null });
     expect((await ws.get("product", "p1"))?.["name"]).toBe("Vite");

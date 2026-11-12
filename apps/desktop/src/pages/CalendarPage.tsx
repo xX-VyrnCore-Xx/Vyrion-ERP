@@ -5,7 +5,9 @@ import { PageHeader } from "../components/Card";
 import { useAsync, useWorkspace } from "../app/context";
 import { href } from "../app/router";
 import { addMonths } from "../lib/dates";
+import { exportCalendar, importCalendar } from "../modules/ics";
 import { ErrorNote, Toolbar } from "../ui/parts";
+import { saveText } from "../ui/saveText";
 
 interface Item {
   day: string;
@@ -30,6 +32,34 @@ export function CalendarPage({ go }: { go: (to: string) => void }) {
   const monthStart = anchor;
   const monthEnd = addMonths(anchor, 1);
   const today = ws.ctx.today();
+  const [exchange, setExchange] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const exportIcs = async () => {
+    setExchange(null);
+    try {
+      await saveText(
+        "vyrion-calendario.ics",
+        await exportCalendar(ws),
+        "text/calendar;charset=utf-8",
+      );
+    } catch (error) {
+      setExchange({ ok: false, text: error instanceof Error ? error.message : String(error) });
+    }
+  };
+  const importIcs = async (file: File | undefined) => {
+    if (!file) return;
+    setExchange(null);
+    try {
+      const r = await importCalendar(ws, await file.text());
+      ws.touch();
+      setExchange({
+        ok: true,
+        text: `Calendario importato: ${r.created} nuovi, ${r.updated} aggiornati, ${r.unchanged} invariati${r.recurring ? `; ${r.recurring} eventi ricorrenti importati solo alla prima data` : ""}${r.ignored ? `; ${r.ignored} elementi non eventi ignorati` : ""}.`,
+      });
+    } catch (error) {
+      setExchange({ ok: false, text: error instanceof Error ? error.message : String(error) });
+    }
+  };
 
   const data = useAsync(async () => {
     const q = <T extends Record<string, string | number | null>>(sql: string) =>
@@ -110,15 +140,38 @@ export function CalendarPage({ go }: { go: (to: string) => void }) {
           →
         </Button>
         <Button onClick={() => setAnchor(`${today.slice(0, 7)}-01`)}>Oggi</Button>
-        <Button
-          variant="primary"
-          className="ml-auto"
-          onClick={() => go(href("e", "appointment", "new"))}
-        >
-          Nuovo appuntamento
-        </Button>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <Button onClick={() => void exportIcs()}>Esporta .ics</Button>
+          <label className="inline-flex cursor-pointer items-center rounded-lg border border-line bg-raised px-3.5 py-2 text-sm font-medium text-fg hover:border-accent">
+            Importa .ics
+            <input
+              type="file"
+              accept=".ics,text/calendar"
+              aria-label="Calendario .ics"
+              className="sr-only"
+              onChange={(e) => {
+                void importIcs(e.target.files?.[0]);
+                e.target.value = "";
+              }}
+            />
+          </label>
+          <Button variant="primary" onClick={() => go(href("e", "appointment", "new"))}>
+            Nuovo appuntamento
+          </Button>
+        </div>
       </Toolbar>
       <ErrorNote message={data.error} />
+      {exchange ? (
+        exchange.ok ? (
+          <p role="status" className="mb-3 text-sm text-success">
+            {exchange.text}
+          </p>
+        ) : (
+          <div className="mb-3">
+            <ErrorNote message={exchange.text} />
+          </div>
+        )
+      ) : null}
       <div className="overflow-hidden rounded-xl border border-line bg-surface">
         <div className="grid grid-cols-7 border-b border-line text-center text-xs text-muted">
           {WEEKDAYS.map((d) => (
