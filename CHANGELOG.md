@@ -7,6 +7,11 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ### Added
 
+- **PDF dei documenti** («Scarica PDF» nell'editor): preventivi, ordini, fatture, note di credito e
+  fatture di acquisto con intestazione dell'azienda, destinatario, righe (a capo automatico e
+  più pagine con intestazione ripetuta), riepilogo IVA per aliquota, bollo, scadenza, IBAN e note.
+  Generatore PDF senza dipendenze (font standard, accenti e €). Le fatture riportano «copia di
+  cortesia»: quella valida ai fini fiscali resta la fattura elettronica.
 - **Importazione da CSV** (pulsante «Importa CSV» nelle liste): separatori «;», «,» o tab, BOM,
   virgolette; mappatura automatica delle colonne per etichetta (modificabile), importi e date
   all'italiana, controllo di ogni riga con le regole dell'entità, salto dei già presenti
