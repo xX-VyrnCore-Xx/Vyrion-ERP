@@ -27,7 +27,7 @@ const q = (strings: TemplateStringsArray): string => strings.join("").replace(/\
 
 const SOURCES: Source[] = [
   {
-    sql: q`SELECT d.id, d.number, d.due_date, p.name AS party, d.total - COALESCE((SELECT SUM(amount) FROM payments x WHERE x.document_id = d.id AND x.deleted_at IS NULL), 0) AS open
+    sql: q`SELECT d.id, d.number, d.due_date, p.name AS party, COALESCE(d.payable, d.total) - COALESCE((SELECT SUM(amount) FROM payments x WHERE x.document_id = d.id AND x.deleted_at IS NULL), 0) AS open
            FROM documents d JOIN parties p ON p.id = d.party_id
            WHERE d.type = 'invoice' AND d.status = 'issued' AND d.deleted_at IS NULL AND d.due_date < ? AND open > 0`,
     params: (today) => [today],
@@ -41,7 +41,7 @@ const SOURCES: Source[] = [
   },
   {
     sql: q`SELECT d.id, d.number, d.due_date, p.name AS party,
-                  d.total - COALESCE((SELECT SUM(amount) FROM payments x WHERE x.document_id = d.id AND x.deleted_at IS NULL), 0) AS open
+                  COALESCE(d.payable, d.total) - COALESCE((SELECT SUM(amount) FROM payments x WHERE x.document_id = d.id AND x.deleted_at IS NULL), 0) AS open
            FROM documents d JOIN parties p ON p.id = d.party_id
            WHERE d.type = 'purchase_invoice' AND d.status = 'issued' AND d.deleted_at IS NULL AND d.due_date <= ? AND open > 0`,
     params: (today) => [addDays(today, 7)],
@@ -314,7 +314,7 @@ export async function kpis(db: SqlRunner, today: string): Promise<Kpis> {
   const one = async (sql: string, params: (string | number)[] = []): Promise<number> =>
     Number((await db.query<{ v: number | null }>(sql, params))[0]?.v ?? 0);
   const openAmount = (types: string, extra = "") =>
-    `SELECT SUM(d.total - COALESCE((SELECT SUM(amount) FROM payments x WHERE x.document_id = d.id AND x.deleted_at IS NULL), 0)) AS v
+    `SELECT SUM(COALESCE(d.payable, d.total) - COALESCE((SELECT SUM(amount) FROM payments x WHERE x.document_id = d.id AND x.deleted_at IS NULL), 0)) AS v
      FROM documents d WHERE d.status = 'issued' AND d.deleted_at IS NULL AND d.type IN (${types}) ${extra}`;
   const year = today.slice(0, 4);
   return {

@@ -134,5 +134,19 @@ export function businessMigrations(): Migration[] {
         `CREATE INDEX ix_ticket_interventions_document_id ON ticket_interventions(document_id) WHERE deleted_at IS NULL`,
       ],
     },
+    {
+      id: 7,
+      name: "documents-cassa-withholding-split",
+      statements: [
+        `ALTER TABLE documents ADD COLUMN cassa_rate REAL`,
+        `ALTER TABLE documents ADD COLUMN cassa_amount INTEGER`,
+        `ALTER TABLE documents ADD COLUMN withholding_rate REAL`,
+        `ALTER TABLE documents ADD COLUMN withholding_base_pct REAL`,
+        `ALTER TABLE documents ADD COLUMN withholding_on_cassa INTEGER CHECK (withholding_on_cassa IS NULL OR withholding_on_cassa IN (0, 1))`,
+        `ALTER TABLE documents ADD COLUMN withholding_amount INTEGER`,
+        `ALTER TABLE documents ADD COLUMN split_payment INTEGER CHECK (split_payment IS NULL OR split_payment IN (0, 1))`,
+        `ALTER TABLE documents ADD COLUMN payable INTEGER`,
+      ],
+    },
   ];
 }

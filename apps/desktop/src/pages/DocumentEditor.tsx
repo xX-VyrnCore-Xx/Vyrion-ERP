@@ -20,6 +20,7 @@ import {
 } from "../modules/documents";
 import { outstanding } from "../modules/erp";
 import {
+  carriedOver,
   convertDocument,
   issueDocument,
   saveDocument,
@@ -182,6 +183,34 @@ function EditorBody({ type, data, go }: { type: string; data: Data; go: (to: str
   const [dueDate, setDueDate] = useState(String(doc?.["due_date"] ?? ""));
   const [number, setNumber] = useState(String(doc?.["number"] ?? ""));
   const [notes, setNotes] = useState(String(doc?.["notes"] ?? ""));
+  const pct = (key: string): string => (doc?.[key] ? String(doc[key]).replace(".", ",") : "");
+  const [cassa, setCassa] = useState(pct("cassa_rate"));
+  const [withholding, setWithholding] = useState(pct("withholding_rate"));
+  const [withholdingBase, setWithholdingBase] = useState(
+    doc?.["withholding_base_pct"] ? String(doc["withholding_base_pct"]) : "100",
+  );
+  const [withholdingOnCassa, setWithholdingOnCassa] = useState(
+    doc?.["withholding_on_cassa"] === undefined || doc?.["withholding_on_cassa"] === null
+      ? true
+      : Boolean(doc["withholding_on_cassa"]),
+  );
+  const [split, setSplit] = useState(Boolean(doc?.["split_payment"]));
+  const percent = (text: string): number => {
+    const n = Number(text.replace(",", "."));
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  };
+  const extras = {
+    cassaRate: percent(cassa),
+    withholding:
+      percent(withholding) > 0
+        ? {
+            rate: percent(withholding),
+            basePct: percent(withholdingBase) || 100,
+            onCassa: withholdingOnCassa,
+          }
+        : null,
+    split,
+  };
   const [lines, setLines] = useState<LineState[]>(() =>
     data.lines.length
       ? data.lines.map((l) => ({
@@ -202,7 +231,7 @@ function EditorBody({ type, data, go }: { type: string; data: Data; go: (to: str
   const [confirmIssue, setConfirmIssue] = useState(false);
 
   const parsed = toInputs(lines);
-  const totals = parsed.problem ? null : computeTotals(parsed.inputs, regime);
+  const totals = parsed.problem ? null : computeTotals(parsed.inputs, regime, extras);
 
   const fail = (error: unknown) => {
     if (error instanceof ValidationError) setMessage(Object.values(error.errors).join(" · "));
@@ -234,6 +263,11 @@ function EditorBody({ type, data, go }: { type: string; data: Data; go: (to: str
       party_id: partyId || null,
       due_date: dueDate || null,
       notes: notes || null,
+      cassa_rate: extras.cassaRate || null,
+      withholding_rate: extras.withholding?.rate ?? null,
+      withholding_base_pct: extras.withholding?.basePct ?? null,
+      withholding_on_cassa: extras.withholding ? extras.withholding.onCassa : null,
+      split_payment: split,
     };
     if (type === "purchase_invoice") header["number"] = number || null;
     const saved = await ws.transact((tx, ctx, repo) =>
@@ -288,6 +322,7 @@ function EditorBody({ type, data, go }: { type: string; data: Data; go: (to: str
             party_id: doc["party_id"],
             source_id: doc.id,
             notes: `Storno/rettifica della fattura ${String(doc["number"])}`,
+            ...carriedOver(doc),
           },
           lines: parsed.inputs,
         }),
@@ -560,20 +595,111 @@ function EditorBody({ type, data, go }: { type: string; data: Data; go: (to: str
                     <dd className="text-right tabular-nums">{formatMoney(b.vat)}</dd>
                   </div>
                 ))}
+              {totals.cassa ? (
+                <>
+                  <dt className="text-muted">Cassa previdenziale {extras.cassaRate}%</dt>
+                  <dd className="text-right tabular-nums">{formatMoney(totals.cassa)}</dd>
+                </>
+              ) : null}
               {totals.stamp ? (
                 <>
                   <dt className="text-muted">Imposta di bollo</dt>
                   <dd className="text-right tabular-nums">{formatMoney(totals.stamp)}</dd>
                 </>
               ) : null}
-              <dt className="font-semibold text-fg">Totale</dt>
+              <dt className="font-semibold text-fg">Totale documento</dt>
               <dd className="text-right text-lg font-semibold tabular-nums text-fg">
                 {formatMoney(totals.total)}
               </dd>
+              {totals.withholding ? (
+                <>
+                  <dt className="text-muted">Ritenuta d'acconto {extras.withholding?.rate}%</dt>
+                  <dd className="text-right tabular-nums">− {formatMoney(totals.withholding)}</dd>
+                </>
+              ) : null}
+              {totals.splitVat ? (
+                <>
+                  <dt className="text-muted">IVA versata dall'ente (split payment)</dt>
+                  <dd className="text-right tabular-nums">− {formatMoney(totals.splitVat)}</dd>
+                </>
+              ) : null}
+              {totals.payable !== totals.total ? (
+                <>
+                  <dt className="font-semibold text-fg">
+                    Netto da {type === "purchase_invoice" ? "pagare" : "incassare"}
+                  </dt>
+                  <dd className="text-right font-semibold tabular-nums text-fg">
+                    {formatMoney(totals.payable)}
+                  </dd>
+                </>
+              ) : null}
             </dl>
           ) : (
             <p className="text-sm text-muted">{parsed.problem}</p>
           )}
+        </Card>
+
+        <Card title="Cassa, ritenuta e split payment">
+          <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+            <label className="block text-xs font-medium text-muted">
+              Cassa previdenziale %
+              <input
+                className={`${CONTROL} mt-1`}
+                inputMode="decimal"
+                placeholder="es. 4"
+                value={cassa}
+                disabled={locked}
+                onChange={(e) => setCassa(e.target.value)}
+              />
+            </label>
+            <label className="block text-xs font-medium text-muted">
+              Ritenuta d'acconto %
+              <input
+                className={`${CONTROL} mt-1`}
+                inputMode="decimal"
+                placeholder="es. 20"
+                value={withholding}
+                disabled={locked || regime === "forfettario" || split}
+                onChange={(e) => setWithholding(e.target.value)}
+              />
+            </label>
+            <label className="block text-xs font-medium text-muted">
+              Quota imponibile della ritenuta %
+              <input
+                className={`${CONTROL} mt-1`}
+                inputMode="decimal"
+                value={withholdingBase}
+                disabled={locked || !withholding}
+                onChange={(e) => setWithholdingBase(e.target.value)}
+              />
+            </label>
+            <div className="space-y-2 pt-5 text-fg">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  className="size-4 accent-[var(--accent)]"
+                  checked={withholdingOnCassa}
+                  disabled={locked || !withholding}
+                  onChange={(e) => setWithholdingOnCassa(e.target.checked)}
+                />
+                Ritenuta anche sulla cassa
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  className="size-4 accent-[var(--accent)]"
+                  checked={split}
+                  disabled={locked || regime === "forfettario" || Boolean(withholding)}
+                  onChange={(e) => setSplit(e.target.checked)}
+                />
+                Split payment (ente pubblico)
+              </label>
+            </div>
+          </div>
+          <p className="mt-2 text-xs text-muted">
+            Nel regime forfettario non si applicano ritenuta e split payment. Lo split payment non
+            si usa con la ritenuta. Chiedi al tuo commercialista se applicarli al caso specifico.
+          </p>
         </Card>
 
         <Card title="Note">
@@ -715,8 +841,8 @@ function PaymentsCard({
   return (
     <Card title={incoming ? "Incassi" : doc["type"] === "credit_note" ? "Rimborsi" : "Pagamenti"}>
       <p className="mb-3 text-sm text-muted">
-        Totale {formatMoney(Number(doc["total"]))} · residuo{" "}
-        <span className={open > 0 ? "text-fg" : "text-success"}>{formatMoney(open)}</span>
+        Da {incoming ? "incassare" : "pagare"} {formatMoney(Number(doc["payable"] ?? doc["total"]))}{" "}
+        · residuo <span className={open > 0 ? "text-fg" : "text-success"}>{formatMoney(open)}</span>
       </p>
       <ul className="mb-3 space-y-1 text-sm">
         {payments.map((p) => (

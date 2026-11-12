@@ -101,7 +101,8 @@ export function DocumentsPage({ route, go }: { route: Route; go: (to: string) =>
             <tbody>
               {result.data?.rows.map((row) => {
                 const total = Number(row["total"]);
-                const open = total - (result.data?.paid.get(row.id) ?? 0);
+                const open =
+                  Number(row["payable"] ?? row["total"]) - (result.data?.paid.get(row.id) ?? 0);
                 const overdue =
                   isFiscal(type) &&
                   row["status"] === "issued" &&

@@ -7,6 +7,19 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ### Added
 
+- **Cassa previdenziale, ritenuta d'acconto e split payment** sui documenti: la cassa (es. 4%) si
+  aggiunge alla base dell'IVA con l'aliquota delle righe; la ritenuta (es. 20%, quota imponibile
+  e inclusione della cassa a scelta) si calcola su compensi e cassa, mai sull'IVA; con lo split
+  payment l'IVA la versa l'ente e non entra nelle registrazioni. Ogni documento mostra totale e
+  **netto da incassare/pagare**: scadenzario, incassi, avvisi e prima nota usano il netto. Nuovi
+  conti 135 (ritenute subite) e 230 (ritenute da versare). Regole: niente ritenuta né split nel
+  regime forfettario, split e ritenuta non insieme. Il riepilogo IVA calcola sulla base con
+  cassa, elenca a parte l'IVA in split e c'è un report delle ritenute (subite e operate). PDF
+  aggiornato (totale documento, ritenuta, netto, diciture). I calcoli vanno fatti verificare dal
+  commercialista.
+
+### Added
+
 - **Promemoria**: sugli appuntamenti «Promemoria (minuti prima)» e sulle attività «Ricordamelo il»
   generano avvisi nell'app (campanella e Panoramica) quando è il momento; non ci sono notifiche di
   sistema ad app chiusa.
