@@ -176,13 +176,35 @@ jobs:
           # made from the app bundle, so build that one too.
           if [ "$RUNNER_OS" = "macOS" ]; then echo "extra=,app" >> "$GITHUB_OUTPUT"; fi
 
+      # Windows installers get an Authenticode signature from a certificate made on the spot
+      # (self-signed, no purchased certificate and no secret): the files are signed and carry
+      # "VyrnCore Enterprises" as publisher, but Windows does not trust the certificate, so
+      # SmartScreen still warns. A bought certificate would replace this step.
+      - name: Self-signed Authenticode certificate (Windows)
+        if: runner.os == 'Windows'
+        id: winsign
+        shell: pwsh
+        run: |
+          $cert = New-SelfSignedCertificate -Type CodeSigningCert `
+            -Subject 'CN=VyrnCore Enterprises, O=VyrnCore Enterprises' `
+            -KeyAlgorithm RSA -KeyLength 3072 -HashAlgorithm SHA256 `
+            -CertStoreLocation Cert:\CurrentUser\My -NotAfter (Get-Date).AddYears(3)
+          $conf = @{ bundle = @{ windows = @{
+            certificateThumbprint = $cert.Thumbprint
+            digestAlgorithm = 'sha256'
+          } } } | ConvertTo-Json -Depth 6
+          New-Item -ItemType Directory -Force src-tauri | Out-Null
+          Set-Content -Path src-tauri/sign.conf.json -Value $conf -Encoding utf8NoBOM
+          Write-Host "certificate $($cert.Thumbprint) created"
+          "args=--config src-tauri/sign.conf.json" >> $env:GITHUB_OUTPUT
+
       - run: pnpm install --frozen-lockfile
       - name: Frontend checks
         run: |
           pnpm typecheck
           pnpm test
       - name: Build installer
-        run: pnpm tauri build --target "${{ matrix.target }}" --bundles "${{ matrix.bundles }}${{ steps.updater.outputs.extra }}" ${{ steps.updater.outputs.args }}
+        run: pnpm tauri build --target "${{ matrix.target }}" --bundles "${{ matrix.bundles }}${{ steps.updater.outputs.extra }}" ${{ steps.updater.outputs.args }} ${{ steps.winsign.outputs.args }}
 
       - name: Collect the installer
         run: |
@@ -201,6 +223,12 @@ jobs:
           fi
           out="../../dist-release/Vyrion-ERP_${VERSION}_${{ matrix.asset }}.${ext}"
           cp "${files[0]}" "$out"
+          # macOS: the app inside is already signed ad hoc; sign the disk image the same way
+          # (no certificate). Apple still does not trust it: that needs notarization.
+          if [ "${{ matrix.bundles }}" = "dmg" ]; then
+            codesign --force --sign - "$out"
+            codesign --verify --verbose "$out"
+          fi
           size=$(wc -c < "$out")
           echo "installer: $out ($size bytes)"
           # A broken build produces kilobytes; the real installers are a few megabytes.
@@ -246,6 +274,19 @@ jobs:
           fi
 
       # Real smoke tests of what users will actually run.
+      - name: Check the Authenticode signature of the Windows installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        working-directory: ${{ github.workspace }}
+        run: |
+          $installer = Get-ChildItem dist-release -Filter *.exe | Select-Object -First 1
+          $sig = Get-AuthenticodeSignature $installer.FullName
+          Write-Host "status: $($sig.Status)"
+          Write-Host "signer: $($sig.SignerCertificate.Subject)"
+          if (-not $sig.SignerCertificate) { throw 'The installer is not signed' }
+          if ($sig.SignerCertificate.Subject -notmatch 'VyrnCore Enterprises') {
+            throw "Unexpected signer: $($sig.SignerCertificate.Subject)"
+          }
       - name: Smoke test the Windows installer (silent install and uninstall)
         if: runner.os == 'Windows'
         shell: pwsh

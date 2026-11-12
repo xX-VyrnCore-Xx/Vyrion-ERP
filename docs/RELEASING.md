@@ -184,8 +184,23 @@ conservate modifica `keep` in `release.yml`.
 
 ## Firma e notarizzazione
 
-Sono attive solo se esistono i segreti nel repository (*Settings → Secrets and variables →
-Actions*). Senza, gli installer si producono ma non sono firmati.
+### Firma senza certificati (sempre attiva)
+
+Tutte le build, anche quelle delle pull request, vengono firmate **senza certificati acquistati e
+senza segreti**:
+
+| Piattaforma | Cosa viene firmato | Cosa significa |
+| --- | --- | --- |
+| Windows | L'installer `.exe` con una firma Authenticode da un certificato **autofirmato** creato dalla CI a ogni build (`CN=VyrnCore Enterprises`, SHA-256). La CI controlla che la firma ci sia e che l'editore sia quello atteso. | Il file risulta firmato, ma Windows **non si fida** di un certificato autofirmato: SmartScreen avvisa comunque. Il certificato cambia a ogni build. |
+| macOS | L'app e l'immagine disco `.dmg` con firma «ad hoc». La CI fallisce se la firma dell'app non verifica. | Evita l'errore di pacchetto non valido, ma Apple non la riconosce: senza notarizzazione macOS chiede conferma al primo avvio. |
+
+In più, con il segreto `TAURI_SIGNING_PRIVATE_KEY` i pacchetti di aggiornamento sono firmati con la
+chiave del progetto (vedi «Aggiornamenti automatici»): è un'altra firma, usata solo dall'app.
+
+### Firma con certificati (opzionale, a pagamento)
+
+Le firme riconosciute dai sistemi operativi (che fanno sparire gli avvisi) sono attive solo se
+esistono i segreti nel repository (*Settings → Secrets and variables → Actions*).
 
 **macOS** (firma + notarizzazione, tutti obbligatori insieme):
 
@@ -200,9 +215,10 @@ Actions*). Senza, gli installer si producono ma non sono firmati.
 
 Richiede un account Apple Developer a pagamento.
 
-**Windows:** la firma **non è ancora configurata**. Serve un certificato di firma del codice
-(idealmente EV, per evitare gli avvisi di SmartScreen) e la configurazione di Tauri
-(`bundle.windows`). Fino ad allora Windows mostrerà l'avviso "editore sconosciuto".
+**Windows:** la firma con certificato acquistato **non è configurata**: oggi l'installer ha solo la
+firma autofirmata descritta sopra. Per togliere gli avvisi serve un certificato di firma del codice
+(idealmente EV, per SmartScreen) e la sostituzione del passaggio «Self-signed Authenticode
+certificate» con la firma reale (`bundle.windows`).
 
 I certificati e le chiavi non vanno mai nel repository (`.gitignore` esclude `.p12`, `.pem`,
 `.key` e simili).
