@@ -14,8 +14,8 @@ documentata**. Nessuna funzione viene mostrata nell'interfaccia prima di avere u
 | 7 | Moduli ERP | Pianificata |
 | 8 | Moduli CRM | Pianificata |
 | 9 | Moduli IT | Pianificata |
-| 10 | Backup e infrastruttura | Pianificata |
-| 11 | Test e ottimizzazione | Pianificata |
+| 10 | Backup e infrastruttura | ✅ Completata (database; vedi limiti in BACKUP.md) |
+| 11 | Test e ottimizzazione | ◐ Parziale (vedi sotto) |
 | 12 | Build e release | Pianificata |
 
 ## M1 — Architettura e repository ✅
@@ -126,3 +126,15 @@ release e changelog automatici.
 **Anticipato dalla M12:** la pipeline di build e rilascio con pulizia automatica (ultime 3
 release) è scritta: vedi [RELEASING.md](RELEASING.md). Resta da fare la firma di Windows, gli
 aggiornamenti automatici e la prima esecuzione reale su GitHub Actions e su runner Windows/macOS.
+
+## M11 — Test e ottimizzazione ◐
+
+Fatto e verificato:
+
+- **End-to-end contro il server vero** (`apps/desktop/src/sync/__tests__/e2e.test.ts`, job CI «End-to-end»): due dispositivi, unione e conflitti, lavoro offline e ripresa, rinnovo del token, flussi della console (utenti, ruoli, audit, sessioni, stato, backup, invito).
+- **Prestazioni** (`src/__tests__/performance.test.ts`): con 3000 record, inserimento ~0,5 s, ricerca 4–24 ms, indicatori 1 ms (SQLite in memoria; margini larghi per non fallire su CI lenta).
+- **Backup**: ripristino confrontato riga per riga in CI (M10).
+- **Revisione di sicurezza interna**: vedi [SECURITY.md](../SECURITY.md).
+
+Non fatto: misure sul database cifrato reale (SQLCipher in Tauri), consumi/batteria, prove su
+Windows e macOS reali, test di carico con più utenti, penetration test esterno.

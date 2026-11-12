@@ -89,4 +89,80 @@ describe.skipIf(!url)("real server", () => {
     expect(saved).toHaveLength(1);
     expect(saved[0]?.refreshToken).not.toBe(stale.refreshToken);
   });
+
+  it("keeps working offline, then sends everything once the server is reachable again", async () => {
+    const a = await device();
+    const b = await device();
+    await a.engine.adopt();
+    await b.engine.adopt();
+    const tag = `offline-${Date.now()}`;
+
+    // The same device, with a server that cannot be reached.
+    const down = new SyncEngine(
+      a.ws,
+      new HttpTransport(
+        { ...a.saved[0], serverUrl: "http://127.0.0.1:1" } as SyncSession,
+        a.ws.deviceId,
+        async () => undefined,
+      ),
+    );
+    const record = await a.ws.create("party", { name: `Creato offline ${tag}`, kind: "customer" });
+    await a.ws.update("party", record.id, { phone: "+39 06 0000000" });
+    await expect(down.syncNow()).rejects.toMatchObject({ code: "network" });
+    expect(await down.pendingCount()).toBeGreaterThan(0);
+    expect((await a.ws.get("party", record.id))?.["name"]).toBe(`Creato offline ${tag}`); // nothing lost
+
+    // Back online: the queue drains and the other device receives the record.
+    const report = await a.engine.syncNow();
+    expect(report.problems).toEqual([]);
+    expect(await a.engine.pendingCount()).toBe(0);
+    await b.engine.syncNow();
+    const there = await b.ws.get("party", record.id);
+    expect(there?.["name"]).toBe(`Creato offline ${tag}`);
+    expect(there?.["phone"]).toBe("+39 06 0000000");
+
+    // Sending again changes nothing (idempotent): no duplicates.
+    expect((await a.engine.syncNow()).sent).toBe(0);
+  });
+
+  it("serves the administration console: users, roles, audit, sessions, status, backups", async () => {
+    const d = await device();
+    const get = <T>(path: string) => d.transport.request<T>("GET", path);
+    const users = await get<{ items: { email: string; id: string; version: number }[] }>(
+      "/users?limit=50",
+    );
+    expect(users.items.some((u) => u.email === email)).toBe(true);
+    expect((await get<{ key: string }[]>("/roles")).length).toBeGreaterThan(0);
+    expect((await get<{ items: unknown[] }>("/audit-log?limit=5")).items.length).toBeGreaterThan(0);
+    expect((await get<{ current: boolean }[]>("/auth/sessions")).some((x) => x.current)).toBe(true);
+    const status = await get<{ records: number; devices: unknown[] }>("/sync/status");
+    expect(status.records).toBeGreaterThanOrEqual(0);
+    const backups = await get<{ configured: boolean; stale: boolean }>("/backups");
+    expect(backups.stale).toBe(true); // no backup service writes here
+
+    // Invite, give a role, deactivate: the flow of the Users pane.
+    const invited = await d.transport.request<{
+      user: { id: string; version: number };
+      setup_token: string;
+    }>("POST", "/users", {
+      email: `invited-${Date.now()}@example.com`,
+      full_name: "Invitata Prova",
+    });
+    expect(invited.setup_token.length).toBeGreaterThan(10);
+    const withRole = await d.transport.request<{ version: number; roles: { key: string }[] }>(
+      "PUT",
+      `/users/${invited.user.id}/roles`,
+      { version: invited.user.version, roles: ["employee"] },
+    );
+    expect(withRole.roles.map((r) => r.key)).toEqual(["employee"]);
+    const off = await d.transport.request<{ is_active: boolean }>(
+      "PATCH",
+      `/users/${invited.user.id}`,
+      {
+        version: withRole.version,
+        is_active: false,
+      },
+    );
+    expect(off.is_active).toBe(false);
+  });
 });

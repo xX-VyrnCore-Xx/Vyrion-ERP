@@ -7,6 +7,18 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ### Added
 
+- **Test end-to-end contro il server vero in CI** (job «End-to-end»): sincronizzazione tra due
+  dispositivi, lavoro offline e ripresa, conflitti, rinnovo del token e flussi della console.
+  Test di prestazioni con 3000 record e revisione di sicurezza interna (SECURITY.md).
+- **Backup automatico del server** (milestone 10): servizio `backup` nello stack Compose con
+  `pg_dump` cifrato `age` (solo chiave pubblica sul server), checksum, rotazione 7 giornalieri /
+  4 settimanali / 12 mensili, seconda destinazione verificata, controllo di integrità e prova di
+  ripristino. Test end-to-end in CI (ripristino confrontato riga per riga, chiave sbagliata, file
+  manomesso). In **Server → Backup** l'app mostra stato, copie e storico reali; il backend legge il
+  volume in sola lettura (`GET /api/v1/backups`).
+
+### Added
+
 - **Sidebar**: i gruppi CRM, ERP, IT e Server restano sempre aperti; si chiudono solo i sottomenu al loro interno.
 - **Console del server dentro al software**: nuova sezione «Server» nella Sidebar con un
   sottoprogramma a menu proprio: stato e sincronizzazione (salute, coda, conflitti, dispositivi),

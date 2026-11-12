@@ -147,6 +147,32 @@ Non sono difetti nascosti: sono decisioni prese e da conoscere.
 - **La chiave di cifratura va custodita fuori dal server.** Perderla rende inutilizzabili i 2FA
   degli utenti (si recupera con il reset del 2FA da parte di un amministratore).
 
+## Revisione di sicurezza (milestone 11)
+
+Revisione **interna**, non un penetration test indipendente. Cosa è stato effettivamente
+controllato e come:
+
+| Controllo | Esito | Come |
+| --- | --- | --- |
+| Dipendenze note vulnerabili | Nessuna | `pip-audit` e `pnpm audit --prod` eseguiti; `cargo audit` in CI |
+| Segreti nel repository | Nessuno | Ricerca di chiavi private, chiavi `age`, token GitHub e AWS nei file tracciati |
+| Endpoint nuovi senza autenticazione | Nessuno | `/users`, `/backups`, `/sync/status` rispondono `401` senza token; `/backups` dà `403` a un dipendente (test) |
+| Documentazione API in produzione | Disattivata | `docs_url`/`openapi_url` sono `None` con `VYRION_ENVIRONMENT=production` |
+| Intestazioni | `Cache-Control: no-store` su API e accessi; HSTS e `nosniff` da Caddy | Lettura del codice e prova su un server avviato |
+| Messaggi di errore | Non rivelano se l'utente esiste | Accesso con utente inesistente: «Invalid credentials» |
+| Backup | Cifrati con chiave pubblica; la privata non è sul server; volume in sola lettura per l'API | Test end-to-end in CI (file manomesso, chiave sbagliata) |
+| Contenuto della finestra (CSP) | `default-src 'self'`, niente `unsafe-eval`, `frame-ancestors 'none'`, `freezePrototype` | `tauri.conf.json` |
+
+Rischi accettati o aperti:
+
+- **`connect-src` ammette `https:` e `http://localhost:*`**: l'indirizzo del server lo sceglie la
+  persona, quindi non si può elencare in anticipo. L'HTTPS verso il server resta obbligatorio per
+  documentazione; l'app non lo impone sul client.
+- **`style-src 'unsafe-inline'`** serve a Tailwind e a React per gli stili dinamici.
+- Il token di sessione del collegamento sta nel database locale cifrato (SQLCipher): protegge da un
+  furto del file ma non da un malware attivo sul computer sbloccato.
+- Non verificati: fuzzing delle API, test di carico con più utenti, penetration test esterno.
+
 ## Regole per chi sviluppa
 
 1. Mai inserire nel repository credenziali, certificati privati, chiavi o file `.env`.

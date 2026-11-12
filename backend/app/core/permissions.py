@@ -75,6 +75,13 @@ CATALOG: tuple[PermissionDef, ...] = (
     ),
     *_resource(
         "core",
+        "backups",
+        {
+            Action.VIEW: "View the server backup history",
+        },
+    ),
+    *_resource(
+        "core",
         "sync",
         {
             Action.VIEW: "Download changes made on other devices",

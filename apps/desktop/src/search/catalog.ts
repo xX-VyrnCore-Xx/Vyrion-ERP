@@ -146,6 +146,13 @@ const EXTRA_KEYWORDS: Record<string, string[]> = {
   "server/ruoli": ["permessi", "autorizzazioni", "accessi"],
   "server/attivita": ["audit", "log", "cronologia", "chi ha fatto"],
   "server/sessioni": ["dispositivi", "disconnetti", "login", "accessi recenti"],
+  "server/backup": [
+    "copie di sicurezza",
+    "ripristino",
+    "salvataggio dati",
+    "ultimo backup",
+    "cifrato",
+  ],
   "server/azienda": ["ragione sociale", "partita iva", "dati azienda"],
   "": ["home", "dashboard", "avvisi", "indicatori", "riepilogo", "oggi"],
   deadlines: [

@@ -94,3 +94,30 @@ export interface ServerCompany {
   province: string;
   country_code: string;
 }
+
+export interface BackupRun {
+  kind: "backup" | "verify" | "restore_test";
+  ok: boolean;
+  file: string;
+  size_bytes: number;
+  sha256: string;
+  started_at: string;
+  finished_at: string;
+  error: string | null;
+}
+export interface BackupFile {
+  name: string;
+  tier: "daily" | "weekly" | "monthly";
+  size_bytes: number;
+  modified_at: string;
+}
+export interface BackupOverview {
+  configured: boolean;
+  last_backup: BackupRun | null;
+  last_verify: BackupRun | null;
+  last_restore_test: BackupRun | null;
+  stale: boolean;
+  stale_after_hours: number;
+  runs: BackupRun[];
+  files: BackupFile[];
+}

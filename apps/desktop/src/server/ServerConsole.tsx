@@ -1,5 +1,6 @@
 import {
   Building2,
+  DatabaseBackup,
   KeyRound,
   ScrollText,
   ShieldCheck,
@@ -13,6 +14,7 @@ import { PageHeader } from "../components/Card";
 import type { ServerStatus } from "../hooks/useServerStatus";
 import { href } from "../app/router";
 import { AuditPane } from "./AuditPane";
+import { BackupsPane } from "./BackupsPane";
 import { CompanyPane } from "./CompanyPane";
 import { Gate } from "./Gate";
 import { RolesPane } from "./RolesPane";
@@ -31,6 +33,7 @@ export const CONSOLE_TABS: ConsoleTab[] = [
   { key: "ruoli", label: "Ruoli e permessi", icon: ShieldCheck },
   { key: "attivita", label: "Registro attività", icon: ScrollText },
   { key: "sessioni", label: "Sessioni e accessi", icon: KeyRound },
+  { key: "backup", label: "Backup", icon: DatabaseBackup },
   { key: "azienda", label: "Azienda", icon: Building2 },
 ];
 
@@ -59,6 +62,9 @@ export function ServerConsole({ tab, serverUrl, status, go }: Props) {
       break;
     case "sessioni":
       pane = <SessionsPane />;
+      break;
+    case "backup":
+      pane = <BackupsPane />;
       break;
     case "azienda":
       pane = <CompanyPane />;

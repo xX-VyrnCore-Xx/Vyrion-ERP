@@ -222,6 +222,7 @@ export const NAV: NavSection[] = [
           { label: "Ruoli e permessi", to: "server/ruoli" },
           { label: "Registro attività", to: "server/attivita" },
           { label: "Sessioni e accessi", to: "server/sessioni" },
+          { label: "Backup", to: "server/backup" },
           { label: "Azienda", to: "server/azienda" },
         ],
       },
