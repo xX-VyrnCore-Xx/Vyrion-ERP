@@ -14,8 +14,10 @@ import type { Workspace } from "../data/workspace";
 import { getSetting, setSetting } from "../data/system";
 import {
   HttpTransport,
+  isTransient,
   login,
   logout,
+  needsSignIn,
   secondFactor,
   ServerError,
   type SyncSession,
@@ -45,6 +47,8 @@ export interface SyncState {
   lastSyncAt: string | null;
   lastReport: SyncReport | null;
   error: string | null;
+  /** The saved session can no longer be renewed: sign in again (nothing is lost). */
+  needsLogin: boolean;
 }
 
 export interface SyncApi extends SyncState {
@@ -58,6 +62,8 @@ export interface SyncApi extends SyncState {
   syncNow(): Promise<void>;
   resolve(conflictId: number, choice: "mine" | "server"): Promise<void>;
   disconnect(): Promise<void>;
+  /** A text for support: what the link is doing, without any secret. */
+  diagnostics(): string;
 }
 
 const EMPTY: SyncState = {
@@ -72,6 +78,7 @@ const EMPTY: SyncState = {
   lastSyncAt: null,
   lastReport: null,
   error: null,
+  needsLogin: false,
 };
 
 const Context = createContext<SyncApi | null>(null);
@@ -99,7 +106,11 @@ export function SyncProvider({ ws, children }: { ws: Workspace; children: ReactN
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const countdown = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const patch = useCallback((next: Partial<SyncState>) => setState((s) => ({ ...s, ...next })), []);
+  const needsLoginRef = useRef(false);
+  const patch = useCallback((next: Partial<SyncState>) => {
+    if (next.needsLogin !== undefined) needsLoginRef.current = next.needsLogin;
+    setState((s) => ({ ...s, ...next }));
+  }, []);
 
   const refresh = useCallback(async () => {
     const engine = engineRef.current;
@@ -131,22 +142,33 @@ export function SyncProvider({ ws, children }: { ws: Workspace; children: ReactN
 
   const run = useCallback(async () => {
     const engine = engineRef.current;
-    if (!engine || busy.current) return;
+    if (!engine || busy.current || needsLoginRef.current) return;
     busy.current = true;
     clearRetry();
     patch({ syncing: true, error: null });
     let unreachable = false;
+    let waitSeconds: number | undefined;
     try {
       const report = await engine.syncNow();
       failures.current = 0;
-      patch({ lastReport: report, reachable: true, retryIn: null });
+      patch({ lastReport: report, reachable: true, retryIn: null, needsLogin: false });
     } catch (error) {
-      unreachable =
-        error instanceof ServerError && (error.code === "network" || error.code === "timeout");
-      const text = unreachable
-        ? "Server non raggiungibile: i dati restano sul computer e si invieranno appena possibile."
-        : message(error);
-      patch({ error: text, ...(unreachable ? { reachable: false } : { reachable: true }) });
+      if (needsSignIn(error)) {
+        // Retrying cannot help: stop until the person signs in again. The pending changes stay.
+        patch({
+          needsLogin: true,
+          reachable: true,
+          error:
+            "La sessione è scaduta: accedi di nuovo. Le modifiche non inviate restano al sicuro.",
+        });
+      } else {
+        unreachable = isTransient(error);
+        if (error instanceof ServerError) waitSeconds = error.retryAfter;
+        const text = unreachable
+          ? "Server non raggiungibile: i dati restano sul computer e si invieranno appena possibile."
+          : message(error);
+        patch({ error: text, ...(unreachable ? { reachable: false } : { reachable: true }) });
+      }
     } finally {
       busy.current = false;
       patch({ syncing: false });
@@ -154,7 +176,8 @@ export function SyncProvider({ ws, children }: { ws: Workspace; children: ReactN
     }
     if (unreachable) {
       // Keep trying with growing pauses, and show the person when the next attempt comes.
-      const step = RETRY_STEPS[Math.min(failures.current, RETRY_STEPS.length - 1)] ?? 60;
+      const step =
+        waitSeconds ?? RETRY_STEPS[Math.min(failures.current, RETRY_STEPS.length - 1)] ?? 60;
       failures.current++;
       let left = step;
       patch({ retryIn: left });
@@ -236,7 +259,13 @@ export function SyncProvider({ ws, children }: { ws: Workspace; children: ReactN
       await setSetting(ws.db, SESSION, session, ws.ctx.now());
       const engine = build(session);
       engineRef.current = engine;
-      patch({ connected: true, email: session.email, serverUrl: session.serverUrl, error: null });
+      patch({
+        connected: true,
+        email: session.email,
+        serverUrl: session.serverUrl,
+        error: null,
+        needsLogin: false,
+      });
       await engine.adopt(); // queue the data entered before the link, once
       await run();
     },
@@ -267,6 +296,26 @@ export function SyncProvider({ ws, children }: { ws: Workspace; children: ReactN
         await engineRef.current?.resolve(conflictId, choice);
         await refresh();
         await run();
+      },
+      diagnostics() {
+        const lines = [
+          `Vyrion ERP ${__APP_VERSION__}`,
+          `Server: ${state.serverUrl ?? "non collegato"}`,
+          `Account: ${state.email ?? "—"}`,
+          `Dispositivo: ${ws.deviceId}`,
+          `Raggiungibile: ${state.reachable === null ? "non ancora provato" : state.reachable ? "sì" : "no"}`,
+          `Sessione da rinnovare: ${state.needsLogin ? "sì" : "no"}`,
+          `Modifiche in attesa: ${state.pending}`,
+          `Conflitti: ${state.conflicts.length}`,
+          `Ultima sincronizzazione: ${state.lastSyncAt ?? "mai"}`,
+          `Ultimo ciclo: ${
+            state.lastReport
+              ? `inviati ${state.lastReport.sent}, ricevuti ${state.lastReport.received}, uniti ${state.lastReport.merged}`
+              : "—"
+          }`,
+          `Ultimo errore: ${state.error ?? "nessuno"}`,
+        ];
+        return lines.join("\n");
       },
       async disconnect() {
         const session = await getSetting<SyncSession>(ws.db, SESSION);

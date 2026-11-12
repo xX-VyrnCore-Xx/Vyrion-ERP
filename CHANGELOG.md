@@ -43,6 +43,11 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ### Changed
 
+- **Collegamento al server più semplice e affidabile**: «Prova il collegamento» (versione e componenti del server,
+  oppure cosa controllare se non risponde); i server che si riavviano o sono sovraccarichi (429/502/503/504) non
+  sono più errori ma «offline con nuovo tentativo», rispettando `Retry-After`; se la sessione scade l'app smette di
+  riprovare e chiede solo la password (le modifiche in attesa restano); stato di sincronizzazione in una riga con
+  l'ora dell'ultimo scambio nella barra in alto e nella scheda; «Copia diagnostica» per l'assistenza (senza segreti).
 - **Panoramica più ricca**: azioni rapide (nuova fattura, preventivo, anagrafica, ticket, appuntamento), indicatori
   raggruppati in Finanza, Vendite e assistenza, IT con icona colorata (i valori critici diventano rossi),
   grafico dei **ricavi degli ultimi 12 mesi** e barra dei **crediti per scadenza**.

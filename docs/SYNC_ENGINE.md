@@ -119,6 +119,18 @@ automatico sui dati finanziari.
   ruota a ogni rinnovo e la nuova coppia viene salvata subito.
 - **Automatica:** all'avvio, ogni minuto e quando la finestra torna attiva. Se il server non
   risponde l'app continua a funzionare e riprova.
+- **Errori passeggeri:** server non raggiungibile, timeout e risposte 429/502/503/504 (server che si
+  riavvia o sovraccarico) sono trattati come «offline»: nuovi tentativi a intervalli crescenti
+  (5–60 s), oppure dopo il tempo indicato dal server in `Retry-After` (al massimo 5 minuti). Un rifiuto
+  vero (permessi, dati non validi) non viene ritentato e compare come errore.
+- **Sessione scaduta:** se il refresh token non è più valido l'app **smette di riprovare** e chiede di
+  accedere di nuovo (solo la password, stesso server e account); le modifiche in attesa restano nel
+  database locale e partono subito dopo l'accesso.
+- **Stato visibile:** una riga nella barra in alto e nella scheda Sincronizzazione («Sincronizzato»,
+  «3 modifiche in attesa», «Offline…», «Accedi di nuovo…», conflitti) con l'ora dell'ultimo scambio;
+  «Copia diagnostica» produce un testo per l'assistenza (versione, server, dispositivo, stato,
+  ultimo errore) **senza token né password**; «Prova il collegamento» (Impostazioni → Account e
+  server) verifica l'indirizzo e mostra versione e componenti del server.
 
 ## Limiti noti
 

@@ -5,6 +5,7 @@ import { Card, PageHeader } from "../components/Card";
 import type { Theme } from "../hooks/useTheme";
 import { t } from "../i18n/it";
 import { getSystemInfo, type SystemInfo } from "../lib/platform";
+import { fetchReadiness, type Readiness } from "../lib/health";
 import { parseServerUrl, type ServerUrlError } from "../lib/serverUrl";
 import { CompanyCard } from "./CompanyCard";
 import { DataCard } from "./DataCard";
@@ -47,6 +48,10 @@ export function SettingsPage({
   const [draft, setDraft] = useState(serverUrl ?? "");
   const [error, setError] = useState<ServerUrlError | null>(null);
   const [saved, setSaved] = useState(false);
+  const [probe, setProbe] = useState<{ checking: boolean; result: Readiness | null }>({
+    checking: false,
+    result: null,
+  });
   const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
 
   useEffect(() => {
@@ -71,6 +76,18 @@ export function SettingsPage({
     setDraft(result.url);
     setSaved(true);
     onServerUrlChange(result.url);
+  };
+
+  /** Asks the server whether it answers, and says in plain words what was found. */
+  const test = async () => {
+    const parsed = parseServerUrl(draft);
+    if (!parsed.ok) {
+      setError(parsed.error);
+      return;
+    }
+    setError(null);
+    setProbe({ checking: true, result: null });
+    setProbe({ checking: false, result: await fetchReadiness(parsed.url) });
   };
 
   const remove = () => {
@@ -134,6 +151,7 @@ export function SettingsPage({
                     onChange={(event) => {
                       setDraft(event.target.value);
                       setSaved(false);
+                      setProbe({ checking: false, result: null });
                     }}
                     className="w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm text-fg placeholder:text-muted aria-invalid:border-danger"
                     placeholder="https://"
@@ -151,9 +169,48 @@ export function SettingsPage({
                       {t.settings.saved}
                     </p>
                   )}
-                  <div className="mt-4 flex gap-2">
+                  {probe.result ? (
+                    <div
+                      role="status"
+                      className={`mt-3 rounded-lg border px-3 py-2 text-sm ${
+                        probe.result.state === "online"
+                          ? "border-success/40 bg-success/10 text-success"
+                          : probe.result.state === "degraded"
+                            ? "border-warning/40 bg-warning/10 text-warning"
+                            : "border-danger/40 bg-danger/10 text-danger"
+                      }`}
+                    >
+                      {probe.result.state === "offline" ? (
+                        <>
+                          <strong>Il server non risponde.</strong> Controlla che l'indirizzo sia
+                          giusto (https://…), che il computer sia in rete e, se il server è
+                          raggiungibile solo dalla rete aziendale, che la VPN sia attiva.
+                        </>
+                      ) : (
+                        <>
+                          <strong>
+                            {probe.result.state === "online"
+                              ? "Server raggiungibile."
+                              : "Server raggiungibile, ma con un componente in errore."}
+                          </strong>{" "}
+                          Versione {probe.result.version} ·{" "}
+                          {Object.entries(probe.result.components)
+                            .map(([name, c]) => `${name}: ${c.status === "ok" ? "ok" : "errore"}`)
+                            .join(" · ")}
+                          .
+                        </>
+                      )}
+                    </div>
+                  ) : null}
+                  <div className="mt-4 flex flex-wrap gap-2">
                     <Button type="submit" variant="primary">
                       {t.settings.save}
+                    </Button>
+                    <Button
+                      disabled={probe.checking || draft.trim() === ""}
+                      onClick={() => void test()}
+                    >
+                      {probe.checking ? "Verifica in corso…" : "Prova il collegamento"}
                     </Button>
                     {serverUrl !== null && <Button onClick={remove}>{t.settings.remove}</Button>}
                   </div>

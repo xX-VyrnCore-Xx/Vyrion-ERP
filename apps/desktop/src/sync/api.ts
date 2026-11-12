@@ -14,10 +14,32 @@ export class ServerError extends Error {
     message: string,
     readonly status: number,
     readonly code: string,
+    /** Seconds the server asked to wait before the next attempt (Retry-After), if any. */
+    readonly retryAfter?: number,
   ) {
     super(message);
     this.name = "ServerError";
   }
+}
+
+/** HTTP statuses that mean "try again in a moment": the server is restarting or busy. */
+const TRANSIENT_STATUS = new Set([429, 502, 503, 504]);
+
+/** True when waiting and retrying is the right answer (not a refusal to be shown as an error). */
+export function isTransient(error: unknown): boolean {
+  if (!(error instanceof ServerError)) return false;
+  return error.code === "network" || error.code === "timeout" || TRANSIENT_STATUS.has(error.status);
+}
+
+/** True when the person has to sign in again: the saved session can no longer be renewed. */
+export function needsSignIn(error: unknown): boolean {
+  return error instanceof ServerError && (error.status === 401 || error.code === "session_expired");
+}
+
+/** "Retry-After: 30" → 30 seconds (a date form is ignored); never more than five minutes. */
+export function parseRetryAfter(value: string | null): number | undefined {
+  if (!value || !/^\d+$/.test(value.trim())) return undefined;
+  return Math.min(300, Number(value.trim()));
 }
 
 export interface WireOperation {
@@ -94,15 +116,20 @@ async function call<T>(
     try {
       json = text ? JSON.parse(text) : null;
     } catch {
-      throw new ServerError("Risposta del server non valida", response.status, "bad_response");
+      // A proxy answering 502/503 with an HTML page is a busy server, not a broken one.
+      if (response.ok || !TRANSIENT_STATUS.has(response.status))
+        throw new ServerError("Risposta del server non valida", response.status, "bad_response");
     }
     if (!response.ok) {
       const error = (json as { error?: { code?: string; message?: string } } | null)?.error;
-      throw new ServerError(
-        error?.message ?? `Errore del server (${response.status})`,
-        response.status,
-        error?.code ?? "error",
-      );
+      const wait = parseRetryAfter(response.headers.get("Retry-After"));
+      const text =
+        response.status === 429
+          ? "Il server ha ricevuto troppe richieste: riprovo tra poco"
+          : TRANSIENT_STATUS.has(response.status)
+            ? "Il server si sta riavviando o è sovraccarico: riprovo tra poco"
+            : (error?.message ?? `Errore del server (${response.status})`);
+      throw new ServerError(text, response.status, error?.code ?? "error", wait);
     }
     return json as T;
   } catch (error) {
@@ -110,7 +137,11 @@ async function call<T>(
     if (error instanceof DOMException && error.name === "AbortError") {
       throw new ServerError("Il server non risponde", 0, "timeout");
     }
-    throw new ServerError("Server non raggiungibile", 0, "network");
+    throw new ServerError(
+      "Server non raggiungibile: controlla l'indirizzo, la rete o la VPN",
+      0,
+      "network",
+    );
   } finally {
     clearTimeout(timer);
   }
