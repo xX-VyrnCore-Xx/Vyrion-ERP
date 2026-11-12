@@ -148,5 +148,34 @@ export function businessMigrations(): Migration[] {
         `ALTER TABLE documents ADD COLUMN payable INTEGER`,
       ],
     },
+    {
+      id: 8,
+      name: "vat-settlements",
+      statements: [
+        `CREATE TABLE vat_settlements (
+           id TEXT PRIMARY KEY,
+           version INTEGER NOT NULL DEFAULT 1,
+           created_at TEXT NOT NULL,
+           updated_at TEXT NOT NULL,
+           deleted_at TEXT,
+           year INTEGER NOT NULL,
+           period_kind TEXT NOT NULL CHECK (period_kind IS NULL OR period_kind IN ('monthly', 'quarterly')),
+           period INTEGER NOT NULL,
+           date_from TEXT NOT NULL,
+           date_to TEXT NOT NULL,
+           sales_vat INTEGER NOT NULL,
+           purchases_vat INTEGER NOT NULL,
+           previous_credit INTEGER,
+           previous_debit INTEGER,
+           interest INTEGER,
+           due INTEGER,
+           credit_forward INTEGER,
+           debit_forward INTEGER,
+           notes TEXT
+         )`,
+        `CREATE UNIQUE INDEX uq_vat_settlements_period_year_period_kind ON vat_settlements(period, year, period_kind) WHERE deleted_at IS NULL`,
+        `CREATE INDEX ix_vat_settlements_updated ON vat_settlements(updated_at)`,
+      ],
+    },
   ];
 }

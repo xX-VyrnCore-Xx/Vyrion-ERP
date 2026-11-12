@@ -120,6 +120,15 @@ const SETTINGS: CatalogItem[] = [
 /** What else people may call a page. */
 const EXTRA_KEYWORDS: Record<string, string[]> = {
   "billing-hours": ["fatturare ore", "ore assistenza", "interventi da fatturare", "tariffa oraria"],
+  vat: [
+    "registro vendite",
+    "registro acquisti",
+    "liquidazione iva",
+    "acconto iva",
+    "iva da versare",
+    "f24 iva",
+    "protocollo acquisti",
+  ],
   closing: ["chiudere anno", "bilancio", "utile", "perdita", "stato patrimoniale", "fine anno"],
   "fixed-assets": [
     "ammortamento",
