@@ -151,6 +151,8 @@ export const NAV: NavSection[] = [
         children: [
           { label: "Dipendenti", to: e("employee") },
           { label: "Assenze", to: e("leave") },
+          { label: "Presenze e buste paga", to: "payroll" },
+          { label: "Registro presenze", to: e("attendance") },
         ],
       },
       {

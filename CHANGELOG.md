@@ -7,6 +7,12 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ### Added
 
+- **Presenze e buste paga** (Personale → Presenze e buste paga): registro delle presenze con minuti
+  lavorati, import CSV dal timbratore (un giorno già presente si aggiorna), ore attese del mese
+  (festivi nazionali, Pasquetta inclusa, e assenze approvate) con straordinario; buste paga come
+  **prospetto gestionale** con le aliquote della scheda dipendente, registrazione in prima nota (conti
+  250, 251, 252) e pagamento. Non sostituisce la busta paga ufficiale del consulente del lavoro.
+  Migrazione 9.
 - **Registri IVA e liquidazione** (Report → Registri IVA e liquidazione): registro delle vendite e
   degli acquisti con protocollo progressivo, totali per aliquota e IVA in split payment elencata
   a parte, esportabili in CSV; **liquidazione periodica** mensile o trimestrale: IVA sulle vendite

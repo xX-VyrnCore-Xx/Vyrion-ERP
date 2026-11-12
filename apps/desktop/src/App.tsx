@@ -34,6 +34,9 @@ const DocumentEditor = lazy(() =>
 const DocumentsPage = lazy(() =>
   import("./pages/DocumentsPage").then((m) => ({ default: m.DocumentsPage })),
 );
+const PayrollPage = lazy(() =>
+  import("./pages/PayrollPage").then((m) => ({ default: m.PayrollPage })),
+);
 const VatPage = lazy(() => import("./pages/VatPage").then((m) => ({ default: m.VatPage })));
 const BillingHoursPage = lazy(() =>
   import("./pages/BillingHoursPage").then((m) => ({ default: m.BillingHoursPage })),
@@ -203,6 +206,7 @@ function Shell({ volatile }: { volatile: boolean }) {
     page = <DocumentEditor key={`${a}/${b}`} type={a} id={b} go={go} />;
   else if (section === "duplicates") page = <DuplicatesPage />;
   else if (section === "vat") page = <VatPage />;
+  else if (section === "payroll") page = <PayrollPage />;
   else if (section === "billing-hours") page = <BillingHoursPage go={go} />;
   else if (section === "closing") page = <ClosingPage />;
   else if (section === "fixed-assets") page = <FixedAssetsPage />;
