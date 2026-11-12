@@ -370,8 +370,12 @@ function EditorBody({ type, data, go }: { type: string; data: Data; go: (to: str
   };
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
-      <div className="space-y-4">
+    <div
+      className={`mx-auto grid w-full gap-4 ${
+        doc ? "max-w-7xl xl:grid-cols-[minmax(0,1fr)_20rem]" : "max-w-5xl"
+      }`}
+    >
+      <div className="min-w-0 space-y-4">
         <header>
           <a href={`#/documents?type=${type}`} className="text-xs text-muted hover:text-accent">
             ← Documenti
@@ -395,8 +399,8 @@ function EditorBody({ type, data, go }: { type: string; data: Data; go: (to: str
         ) : null}
 
         <Card title="Intestazione">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="text-xs text-muted">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <label className="text-xs text-muted sm:col-span-1">
               Anagrafica *
               <select
                 className={`${CONTROL} mt-1`}
