@@ -2,6 +2,8 @@ import type { SqlRunner } from "../data/db";
 import type { Ctx, EntityDef, Rec } from "../data/entity";
 import { ConflictError, ValidationError } from "../data/errors";
 import type { EntityRepository } from "../data/repository";
+import { getSetting } from "../data/system";
+import { namedId } from "../lib/ids";
 import { opts } from "./common";
 
 export const ACCOUNT_TYPES = opts([
@@ -18,14 +20,18 @@ export const DEFAULT_ACCOUNTS: { code: string; name: string; type: string }[] = 
   { code: "110", name: "Clienti", type: "asset" },
   { code: "120", name: "Banca c/c", type: "asset" },
   { code: "130", name: "IVA a credito", type: "asset" },
+  { code: "150", name: "Immobilizzazioni", type: "asset" },
+  { code: "151", name: "Fondo ammortamento", type: "asset" },
   { code: "200", name: "Fornitori", type: "liability" },
   { code: "220", name: "IVA a debito", type: "liability" },
   { code: "300", name: "Capitale e riserve", type: "equity" },
+  { code: "310", name: "Utile (perdita) d'esercizio", type: "equity" },
   { code: "400", name: "Ricavi delle vendite e prestazioni", type: "revenue" },
   { code: "410", name: "Rimborso imposta di bollo", type: "revenue" },
   { code: "500", name: "Costi per acquisti e servizi", type: "expense" },
   { code: "510", name: "Costo del personale", type: "expense" },
   { code: "520", name: "Spese generali", type: "expense" },
+  { code: "530", name: "Ammortamenti", type: "expense" },
 ];
 
 export const ACC = {
@@ -38,6 +44,10 @@ export const ACC = {
   revenue: "400",
   stampRefund: "410",
   costs: "500",
+  fixedAssets: "150",
+  accumulatedDepreciation: "151",
+  result: "310",
+  depreciation: "530",
 } as const;
 
 export const ACCOUNT: EntityDef = {
@@ -82,6 +92,21 @@ const IMMUTABLE = "Le registrazioni contabili non si modificano: usa lo storno."
 
 // A journal entry can only be created by `postEntry`, which checks that it balances.
 let posting = 0;
+// Set while the closing (or reopening) of a financial year writes its own entries.
+let closing = 0;
+
+/** The last day of the latest closed financial year (setting), or none. */
+export const CLOSED_THROUGH = "accounting.closed_through";
+
+/** Runs `job` with the period lock lifted: only the year-end closing and reopening use it. */
+export async function withPeriodLockLifted<T>(job: () => Promise<T>): Promise<T> {
+  closing++;
+  try {
+    return await job();
+  } finally {
+    closing--;
+  }
+}
 
 export const JOURNAL_ENTRY: EntityDef = {
   key: "journal_entry",
@@ -121,11 +146,20 @@ export const JOURNAL_ENTRY: EntityDef = {
     { name: "reverses_id", label: "Storna", type: "ref", ref: "journal_entry" },
     { name: "total", label: "Totale", type: "money", readonly: true, list: true },
   ],
-  beforeSave: ({ mode }) => {
+  beforeSave: async ({ tx, mode, record }) => {
     if (mode === "create" && posting === 0) {
       throw new ConflictError(
         "Le registrazioni si creano solo dalla prima nota, che ne verifica il pareggio",
       );
+    }
+    if (mode === "create" && !closing) {
+      // A closed financial year cannot receive new entries: its figures are final.
+      const closedThrough = await getSetting<string>(tx, CLOSED_THROUGH);
+      if (closedThrough && String(record["date"]) <= closedThrough) {
+        throw new ConflictError(
+          `L'esercizio fino al ${closedThrough} è chiuso: non si può registrare con questa data`,
+        );
+      }
     }
   },
 };
@@ -187,6 +221,27 @@ async function nextEntryNumber(tx: SqlRunner, year: string): Promise<string> {
     [key],
   );
   return `${year}/${String(row?.last ?? 1).padStart(5, "0")}`;
+}
+
+/**
+ * Makes sure a standard account exists. Installations created before an account was added to
+ * the chart do not have it: it is created with the same fixed id on every device, so two
+ * devices creating it do not end up with two copies.
+ */
+export async function ensureAccount(
+  tx: SqlRunner,
+  ctx: Ctx,
+  repo: RepoOf,
+  code: string,
+): Promise<void> {
+  const [existing] = await tx.query<{ id: string }>(
+    "SELECT id FROM accounts WHERE code = ? AND deleted_at IS NULL",
+    [code],
+  );
+  if (existing) return;
+  const standard = DEFAULT_ACCOUNTS.find((a) => a.code === code);
+  if (!standard) throw new ConflictError(`Il conto ${code} non esiste nel piano dei conti`);
+  await repo("account").create(tx, ctx, { id: await namedId(`account:${code}`), ...standard });
 }
 
 async function accountId(tx: SqlRunner, ref: string): Promise<string> {

@@ -13,10 +13,16 @@ export interface TrialBalanceRow {
 }
 
 /** Totals per account over a period; `balance` is debit minus credit. */
+/**
+ * Totals per account for a period. The year-end closing entries (which zero the income and
+ * expense accounts into the result) are left out unless `includeClosing` is set, so the profit
+ * and loss of a closed year still shows its real figures.
+ */
 export async function trialBalance(
   db: SqlRunner,
   from: string,
   to: string,
+  options: { includeClosing?: boolean } = {},
 ): Promise<TrialBalanceRow[]> {
   const rows = await db.query<{
     code: string;
@@ -30,7 +36,8 @@ export async function trialBalance(
      FROM accounts a
      LEFT JOIN (SELECT jl.account_id, jl.debit, jl.credit
                 FROM journal_lines jl JOIN journal_entries e ON e.id = jl.entry_id
-                WHERE e.date >= ? AND e.date <= ?) l ON l.account_id = a.id
+                WHERE e.date >= ? AND e.date <= ?
+                  ${options.includeClosing ? "" : "AND (e.source_id IS NULL OR e.source_id NOT LIKE 'closing:%')"}) l ON l.account_id = a.id
      WHERE a.deleted_at IS NULL
      GROUP BY a.id ORDER BY a.code`,
     [from, to],

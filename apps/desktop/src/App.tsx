@@ -34,6 +34,15 @@ const DocumentEditor = lazy(() =>
 const DocumentsPage = lazy(() =>
   import("./pages/DocumentsPage").then((m) => ({ default: m.DocumentsPage })),
 );
+const ClosingPage = lazy(() =>
+  import("./pages/ClosingPage").then((m) => ({ default: m.ClosingPage })),
+);
+const FixedAssetsPage = lazy(() =>
+  import("./pages/FixedAssetsPage").then((m) => ({ default: m.FixedAssetsPage })),
+);
+const ReconciliationPage = lazy(() =>
+  import("./pages/ReconciliationPage").then((m) => ({ default: m.ReconciliationPage })),
+);
 const DuplicatesPage = lazy(() =>
   import("./pages/DuplicatesPage").then((m) => ({ default: m.DuplicatesPage })),
 );
@@ -192,6 +201,9 @@ function Shell({ volatile }: { volatile: boolean }) {
   else if (section === "d" && a && b)
     page = <DocumentEditor key={`${a}/${b}`} type={a} id={b} go={go} />;
   else if (section === "duplicates") page = <DuplicatesPage />;
+  else if (section === "closing") page = <ClosingPage />;
+  else if (section === "fixed-assets") page = <FixedAssetsPage />;
+  else if (section === "reconciliation") page = <ReconciliationPage />;
   else if (section === "deadlines") page = <DeadlinesPage />;
   else if (section === "journal") page = <JournalPage />;
   else if (section === "pipeline") page = <PipelinePage go={go} />;

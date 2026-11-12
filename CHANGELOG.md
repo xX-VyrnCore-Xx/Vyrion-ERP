@@ -7,6 +7,21 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ### Added
 
+- **Chiusura dell'esercizio** (Prima nota → Chiusura esercizio): sposta utile o perdita nel
+  patrimonio netto, blocca le registrazioni con date dell'anno chiuso, si chiude un anno alla
+  volta in ordine e si può riaprire l'ultimo. Il conto economico dell'anno chiuso resta leggibile.
+  Include uno stato patrimoniale gestionale (non il bilancio civilistico).
+- **Cespiti e ammortamenti**: registro dei beni durevoli, ammortamento a quote costanti (metà
+  aliquota il primo anno, mai oltre il valore ammortizzabile), capitalizzazione del costo dai
+  «Costi per acquisti» e registrazione annuale una sola volta.
+- **Riconciliazione bancaria** (Scadenzario → Riconciliazione bancaria): importa l'estratto conto
+  CSV (Data, Descrizione, Importo oppure Dare/Avere) senza doppioni e abbina i movimenti ai
+  pagamenti per importo, direzione, data e numero di documento citato.
+- Piano dei conti: 150 Immobilizzazioni, 151 Fondo ammortamento, 310 Utile/perdita d'esercizio,
+  530 Ammortamenti (creati da soli nelle installazioni esistenti quando servono).
+
+### Added
+
 - **Magazzino avanzato**: più magazzini (giacenza e controllo «giacenza insufficiente» per
   magazzino, trasferimenti tra magazzini che non cambiano il valore), lotti e matricole con
   scadenza (le vendite scaricano i lotti che scadono prima, gli acquisti caricano un lotto col
