@@ -40,6 +40,9 @@ const PayrollPage = lazy(() =>
 const AccountantExportPage = lazy(() =>
   import("./pages/AccountantExportPage").then((m) => ({ default: m.AccountantExportPage })),
 );
+const FxRevaluationPage = lazy(() =>
+  import("./pages/FxRevaluationPage").then((m) => ({ default: m.FxRevaluationPage })),
+);
 const VatPage = lazy(() => import("./pages/VatPage").then((m) => ({ default: m.VatPage })));
 const BillingHoursPage = lazy(() =>
   import("./pages/BillingHoursPage").then((m) => ({ default: m.BillingHoursPage })),
@@ -210,6 +213,7 @@ function Shell({ volatile }: { volatile: boolean }) {
   else if (section === "duplicates") page = <DuplicatesPage />;
   else if (section === "vat") page = <VatPage />;
   else if (section === "payroll") page = <PayrollPage />;
+  else if (section === "fx-revaluation") page = <FxRevaluationPage />;
   else if (section === "accountant-export") page = <AccountantExportPage />;
   else if (section === "billing-hours") page = <BillingHoursPage go={go} />;
   else if (section === "closing") page = <ClosingPage />;

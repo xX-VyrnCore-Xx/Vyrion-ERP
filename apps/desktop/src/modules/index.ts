@@ -246,5 +246,26 @@ export function businessMigrations(): Migration[] {
         `ALTER TABLE payments ADD COLUMN received INTEGER`,
       ],
     },
+    {
+      id: 11,
+      name: "fx-revaluations",
+      statements: [
+        `CREATE TABLE fx_revaluations (
+           id TEXT PRIMARY KEY,
+           version INTEGER NOT NULL DEFAULT 1,
+           created_at TEXT NOT NULL,
+           updated_at TEXT NOT NULL,
+           deleted_at TEXT,
+           year INTEGER NOT NULL,
+           currency TEXT NOT NULL,
+           rate REAL NOT NULL,
+           gain INTEGER,
+           loss INTEGER,
+           notes TEXT
+         )`,
+        `CREATE UNIQUE INDEX uq_fx_revaluations_currency_year ON fx_revaluations(currency, year) WHERE deleted_at IS NULL`,
+        `CREATE INDEX ix_fx_revaluations_updated ON fx_revaluations(updated_at)`,
+      ],
+    },
   ];
 }

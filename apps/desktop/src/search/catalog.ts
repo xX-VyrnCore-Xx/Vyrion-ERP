@@ -130,6 +130,16 @@ const EXTRA_KEYWORDS: Record<string, string[]> = {
     "fine anno",
     "registri",
   ],
+  "fx-revaluation": [
+    "cambi",
+    "valuta",
+    "differenze cambio",
+    "rivalutazione",
+    "fine anno",
+    "utili su cambi",
+    "perdite su cambi",
+    "dollari",
+  ],
   payroll: [
     "stipendi",
     "cedolino",

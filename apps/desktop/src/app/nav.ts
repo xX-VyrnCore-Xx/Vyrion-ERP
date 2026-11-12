@@ -129,6 +129,7 @@ export const NAV: NavSection[] = [
           { label: "Registrazioni", to: "journal" },
           { label: "Piano dei conti", to: e("account") },
           { label: "Cespiti e ammortamenti", to: "fixed-assets" },
+          { label: "Adeguamento cambi", to: "fx-revaluation" },
           { label: "Chiusura esercizio", to: "closing" },
         ],
       },
