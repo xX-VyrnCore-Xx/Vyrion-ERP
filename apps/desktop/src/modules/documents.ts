@@ -80,9 +80,18 @@ export interface Totals {
   /** What is actually paid or collected: total − withholding − split VAT. */
   payable: Cents;
   breakdown: VatBreakdown[];
+  /**
+   * For a document in a foreign currency: the same totals in that currency (what the customer
+   * is invoiced). The amounts above are then in euro, converted at the document's rate.
+   */
+  foreign?: Totals;
+  currency?: string;
 }
 
 export interface TotalsExtras {
+  /** Currency of the lines (default EUR) and its exchange rate: units of that currency per 1 EUR. */
+  currency?: string | null;
+  rate?: number | null;
   /** Cassa previdenziale, % of the lines. It follows the VAT of the lines it is computed on. */
   cassaRate?: number | null;
   /** Ritenuta d'acconto: rate, % of the base that is subject to it, and whether the cassa is in the base. */
@@ -105,6 +114,39 @@ export function computeTotals(
   lines: LineInput[],
   regime: "forfettario" | "ordinario",
   extras: TotalsExtras = {},
+): Totals {
+  const rate = extras.rate ?? 0;
+  const currency = (extras.currency ?? "EUR").toUpperCase();
+  if (currency === "EUR" || !(rate > 0)) return computeNative(lines, regime, extras);
+  // Foreign currency: totals are computed in that currency (no stamp duty: it is a euro amount),
+  // then each part is converted to euro so that the euro figures add up exactly.
+  const native = computeNative(lines, regime, { ...extras, noStamp: true });
+  const eur = (cents: Cents): Cents => Math.round(cents / rate);
+  const net = eur(native.net);
+  const cassa = eur(native.cassa);
+  const vat = eur(native.vat);
+  const withholding = eur(native.withholding);
+  const splitVat = extras.split ? vat : 0;
+  const total = net + cassa + vat;
+  return {
+    net,
+    vat,
+    stamp: 0,
+    cassa,
+    total,
+    withholding,
+    splitVat,
+    payable: total - withholding - splitVat,
+    breakdown: native.breakdown.map((g) => ({ ...g, base: eur(g.base), vat: eur(g.vat) })),
+    foreign: native,
+    currency,
+  };
+}
+
+function computeNative(
+  lines: LineInput[],
+  regime: "forfettario" | "ordinario",
+  extras: TotalsExtras & { noStamp?: boolean },
 ): Totals {
   const groups = new Map<string, VatBreakdown>();
   let net = 0;
@@ -135,7 +177,7 @@ export function computeTotals(
   }
   for (const group of breakdown) group.vat = percentOf(group.base, group.rate);
   const vat = breakdown.reduce((sum, g) => sum + g.vat, 0);
-  const stamp = stampBase > STAMP_THRESHOLD ? STAMP_AMOUNT : 0;
+  const stamp = !extras.noStamp && stampBase > STAMP_THRESHOLD ? STAMP_AMOUNT : 0;
   const total = net + cassa + vat + stamp;
   const w = extras.withholding;
   // Withholding is on the fees (and the cassa, if so chosen), never on the VAT.
@@ -176,5 +218,16 @@ export function extrasFromRecord(doc: Record<string, unknown>): TotalsExtras {
           }
         : null,
     split: Boolean(doc["split_payment"]),
+    currency: (doc["currency"] as string | null) ?? null,
+    rate:
+      doc["exchange_rate"] === null || doc["exchange_rate"] === undefined
+        ? null
+        : Number(doc["exchange_rate"]),
   };
+}
+
+/** The foreign currency of a document, or null when it is in euro. */
+export function foreignCurrency(doc: Record<string, unknown>): string | null {
+  const c = String(doc["currency"] ?? "EUR").toUpperCase();
+  return c === "EUR" ? null : c;
 }

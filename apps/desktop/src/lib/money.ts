@@ -33,6 +33,17 @@ export function formatMoney(cents: Cents): string {
   return formatter.format(cents / 100);
 }
 
+const plainFormatter = new Intl.NumberFormat("it-IT", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+/** An amount in any currency: "1.220,00 USD" (euro keeps its symbol). */
+export function formatCurrency(cents: Cents, currency: string | null | undefined): string {
+  const code = (currency ?? "EUR").toUpperCase();
+  return code === "EUR" ? formatMoney(cents) : `${plainFormatter.format(cents / 100)} ${code}`;
+}
+
 /** "1234.56" for forms and CSV exports: plain, no grouping, always two decimals. */
 export function centsToPlain(cents: Cents): string {
   const sign = cents < 0 ? "-" : "";

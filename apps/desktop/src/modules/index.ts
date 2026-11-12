@@ -234,5 +234,17 @@ export function businessMigrations(): Migration[] {
         `CREATE INDEX ix_payslips_updated ON payslips(updated_at)`,
       ],
     },
+    {
+      id: 10,
+      name: "multi-currency",
+      statements: [
+        `ALTER TABLE documents ADD COLUMN currency TEXT`,
+        `ALTER TABLE documents ADD COLUMN exchange_rate REAL`,
+        `ALTER TABLE documents ADD COLUMN foreign_total INTEGER`,
+        `ALTER TABLE documents ADD COLUMN foreign_payable INTEGER`,
+        `ALTER TABLE payments ADD COLUMN foreign_amount INTEGER`,
+        `ALTER TABLE payments ADD COLUMN received INTEGER`,
+      ],
+    },
   ];
 }
