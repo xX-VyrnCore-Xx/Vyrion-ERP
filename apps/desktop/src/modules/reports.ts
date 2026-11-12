@@ -1,6 +1,7 @@
 import type { SqlRunner } from "../data/db";
 import { daysBetween } from "../lib/dates";
 import { percentOf } from "../lib/money";
+import { productCosts, valueOf } from "./stock";
 
 export interface TrialBalanceRow {
   code: string;
@@ -182,27 +183,23 @@ export interface StockRow {
 }
 
 export async function stockLevels(db: SqlRunner): Promise<StockRow[]> {
-  const rows = await db.query<{
-    id: string;
-    sku: string;
-    name: string;
-    q: number;
-    min_stock: number;
-    purchase_price: number;
-  }>(
-    `SELECT p.id, p.sku, p.name, p.min_stock, p.purchase_price,
-            COALESCE((SELECT ROUND(SUM(quantity), 3) FROM stock_movements m WHERE m.product_id = p.id AND m.deleted_at IS NULL), 0) AS q
-     FROM products p WHERE p.track_stock = 1 AND p.deleted_at IS NULL ORDER BY p.name`,
-  );
-  return rows.map((r) => ({
-    productId: r.id,
-    sku: r.sku,
-    name: r.name,
-    onHand: Number(r.q),
-    minStock: Number(r.min_stock ?? 0),
-    value: Math.round(Number(r.q) * Number(r.purchase_price)),
-    low: Number(r.q) <= Number(r.min_stock ?? 0),
-  }));
+  const products = (await db.query(
+    `SELECT id, sku, name, min_stock FROM products WHERE track_stock = 1 AND deleted_at IS NULL ORDER BY name`,
+  )) as unknown as { id: string; sku: string; name: string; min_stock: number | null }[];
+  // Valued at the weighted average cost of the purchases (the purchase price until there are any).
+  const costs = await productCosts(db);
+  return products.map((p) => {
+    const cost = costs.get(p.id) ?? { onHand: 0, average: 0 };
+    return {
+      productId: p.id,
+      sku: p.sku,
+      name: p.name,
+      onHand: cost.onHand,
+      minStock: Number(p.min_stock ?? 0),
+      value: valueOf(cost),
+      low: cost.onHand <= Number(p.min_stock ?? 0),
+    };
+  });
 }
 
 export interface ProjectRow {

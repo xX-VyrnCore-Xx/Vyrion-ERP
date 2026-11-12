@@ -7,6 +7,21 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ### Added
 
+- **Magazzino avanzato**: più magazzini (giacenza e controllo «giacenza insufficiente» per
+  magazzino, trasferimenti tra magazzini che non cambiano il valore), lotti e matricole con
+  scadenza (le vendite scaricano i lotti che scadono prima, gli acquisti caricano un lotto col
+  numero del documento, avvisi su lotti scaduti o in scadenza) e **valorizzazione al costo medio
+  ponderato** al posto dell'ultimo prezzo di acquisto. Nuove voci Magazzini e Lotti nel menu.
+
+### Fixed
+
+- **Schema del database congelato**: la migrazione 2 ora è un elenco letterale (con un test che ne
+  verifica l'impronta). Prima seguiva le definizioni delle entità, quindi qualunque modifica a
+  un'entità avrebbe impedito di aprire i database già creati; le modifiche vengono ora da nuove
+  migrazioni (la 4 aggiunge magazzini e lotti, provata su un database «vecchio» con dati).
+
+### Added
+
 - **PDF dei documenti** («Scarica PDF» nell'editor): preventivi, ordini, fatture, note di credito e
   fatture di acquisto con intestazione dell'azienda, destinatario, righe (a capo automatico e
   più pagine con intestazione ripetuta), riepilogo IVA per aliquota, bollo, scadenza, IBAN e note.

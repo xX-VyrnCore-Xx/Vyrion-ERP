@@ -314,6 +314,13 @@ const product: EntityDef = {
     { name: "purchase_price", label: "Prezzo di acquisto", type: "money", default: 0, min: 0 },
     { name: "vat_rate", label: "IVA %", type: "percent", default: 22 },
     { name: "track_stock", label: "Gestisci giacenza", type: "boolean", default: false },
+    {
+      name: "track_lots",
+      label: "Gestisci lotti / matricole",
+      type: "boolean",
+      default: false,
+      help: "Ogni movimento indica il lotto. Per le matricole usa un lotto per ogni pezzo.",
+    },
     { name: "min_stock", label: "Scorta minima", type: "decimal", min: 0, default: 0 },
     { name: "description", label: "Descrizione", type: "longtext" },
   ],
@@ -321,6 +328,72 @@ const product: EntityDef = {
     if (record["kind"] === "service" && record["track_stock"]) {
       throw new ValidationError({ track_stock: "I servizi non hanno giacenza" });
     }
+    if (record["track_lots"] && !record["track_stock"]) {
+      throw new ValidationError({ track_lots: "I lotti richiedono la gestione della giacenza" });
+    }
+  },
+};
+
+const warehouse: EntityDef = {
+  key: "warehouse",
+  module: "erp",
+  label: "Magazzino",
+  plural: "Magazzini",
+  table: "warehouses",
+  title: (r) => String(r["name"]),
+  defaultOrder: "name asc",
+  fields: [
+    {
+      name: "name",
+      label: "Nome",
+      type: "text",
+      required: true,
+      unique: true,
+      searchable: true,
+      list: true,
+    },
+    { name: "address", label: "Indirizzo", type: "text", list: true },
+    { name: "notes", label: "Note", type: "longtext" },
+  ],
+};
+
+const stockLot: EntityDef = {
+  key: "stock_lot",
+  module: "erp",
+  label: "Lotto",
+  plural: "Lotti",
+  table: "stock_lots",
+  title: (r) => String(r["code"]),
+  defaultOrder: "expiry_date asc",
+  fields: [
+    {
+      name: "product_id",
+      label: "Prodotto",
+      type: "ref",
+      ref: "product",
+      required: true,
+      list: true,
+    },
+    {
+      name: "code",
+      label: "Lotto / matricola",
+      type: "text",
+      required: true,
+      unique: ["product_id"],
+      searchable: true,
+      maxLength: 60,
+      list: true,
+    },
+    { name: "expiry_date", label: "Scadenza", type: "date", list: true },
+    { name: "notes", label: "Note", type: "longtext" },
+  ],
+  beforeSave: async ({ tx, record }) => {
+    const [item] = await tx.query<{ track_lots: number }>(
+      "SELECT track_lots FROM products WHERE id = ?",
+      [record["product_id"] as string],
+    );
+    if (!item?.track_lots)
+      throw new ValidationError({ product_id: "Il prodotto non gestisce i lotti" });
   },
 };
 
@@ -362,6 +435,15 @@ const stockMovement: EntityDef = {
       list: true,
     },
     { name: "unit_cost", label: "Costo unitario", type: "money", default: 0, min: 0 },
+    {
+      name: "warehouse_id",
+      label: "Magazzino",
+      type: "ref",
+      ref: "warehouse",
+      help: "Vuoto = magazzino principale",
+      list: true,
+    },
+    { name: "lot_id", label: "Lotto", type: "ref", ref: "stock_lot" },
     { name: "reason", label: "Motivo", type: "text", list: true },
     { name: "document_id", label: "Documento", type: "ref", ref: "document" },
   ],
@@ -372,20 +454,40 @@ const stockMovement: EntityDef = {
     if ((kind === "in" && quantity < 0) || (kind === "out" && quantity > 0)) {
       throw new ValidationError({ quantity: "Il segno non corrisponde al tipo di movimento" });
     }
-    const [item] = await tx.query<{ track_stock: number; name: string }>(
-      "SELECT track_stock, name FROM products WHERE id = ?",
+    const [item] = await tx.query<{ track_stock: number; track_lots: number; name: string }>(
+      "SELECT track_stock, track_lots, name FROM products WHERE id = ?",
       [record["product_id"] as string],
     );
     if (!item?.track_stock)
       throw new ValidationError({ product_id: "Il prodotto non ha la giacenza attiva" });
+    const lotId = (record["lot_id"] as string | null) ?? null;
+    if (item.track_lots && !lotId)
+      throw new ValidationError({ lot_id: `${item.name} gestisce i lotti: indica il lotto` });
+    if (!item.track_lots && lotId)
+      throw new ValidationError({ lot_id: `${item.name} non gestisce i lotti` });
+    if (lotId) {
+      const [lot] = await tx.query<{ product_id: string }>(
+        "SELECT product_id FROM stock_lots WHERE id = ? AND deleted_at IS NULL",
+        [lotId],
+      );
+      if (!lot || lot.product_id !== record["product_id"])
+        throw new ValidationError({ lot_id: "Il lotto non appartiene a questo prodotto" });
+    }
     if (quantity < 0) {
+      // Availability is checked where the goods are: in that warehouse and, if any, that lot.
+      const warehouseId = (record["warehouse_id"] as string | null) ?? null;
       const [row] = await tx.query<{ q: number | null }>(
-        "SELECT ROUND(SUM(quantity), 3) AS q FROM stock_movements WHERE product_id = ? AND deleted_at IS NULL",
-        [record["product_id"] as string],
+        `SELECT ROUND(SUM(quantity), 3) AS q FROM stock_movements
+         WHERE product_id = ? AND deleted_at IS NULL
+           AND COALESCE(warehouse_id, '') = COALESCE(?, '')
+           AND COALESCE(lot_id, '') = COALESCE(?, '')`,
+        [record["product_id"] as string, warehouseId, lotId],
       );
       const onHand = Number(row?.q ?? 0);
       if (onHand + quantity < -1e-9) {
-        throw new ConflictError(`Giacenza insufficiente per ${item.name}: disponibili ${onHand}`);
+        throw new ConflictError(
+          `Giacenza insufficiente per ${item.name}${lotId ? " in questo lotto" : ""}${warehouseId ? " in questo magazzino" : ""}: disponibili ${onHand}`,
+        );
       }
     }
   },
@@ -593,6 +695,8 @@ export const ERP_ENTITIES: EntityDef[] = [
   document,
   documentLine,
   payment,
+  warehouse,
+  stockLot,
   stockMovement,
   employee,
   leave,

@@ -1,41 +1,23 @@
 import type { EntityDef } from "../data/entity";
 import type { Migration } from "../data/migrations";
-import { createTableSql } from "../data/entity";
-import type { Registry } from "../data/registry";
 import { CRM_ENTITIES } from "./crm";
 import { ERP_ENTITIES } from "./erp";
 import { IT_ENTITIES } from "./it";
+import { BUSINESS_SCHEMA_V2 } from "./schemaV2";
 
 export const ALL_ENTITIES: EntityDef[] = [...CRM_ENTITIES, ...ERP_ENTITIES, ...IT_ENTITIES];
 
 /**
- * Schema of the business tables. Pre-release only: while the app is unreleased this
- * migration follows the entity definitions. From the first stable release the generated
- * SQL is frozen here as literal statements and every later change is a new migration.
+ * Schema of the business tables. Applied migrations are frozen as literal SQL (an applied
+ * migration whose text changes is refused), so a change to an entity definition needs a new
+ * migration here with the matching `ALTER TABLE` / `CREATE TABLE`, never an edit of an old one.
  */
-export function businessMigrations(registry: Registry): Migration[] {
+export function businessMigrations(): Migration[] {
   return [
     {
       id: 2,
       name: "business-entities",
-      statements: [
-        `CREATE TABLE number_sequences (
-           key TEXT PRIMARY KEY,
-           last INTEGER NOT NULL,
-           last_date TEXT
-         )`,
-        // Reachability results are operational telemetry, not business records: no audit, no sync.
-        `CREATE TABLE monitor_results (
-           id INTEGER PRIMARY KEY AUTOINCREMENT,
-           check_id TEXT NOT NULL,
-           at TEXT NOT NULL,
-           up INTEGER NOT NULL CHECK (up IN (0, 1)),
-           latency_ms INTEGER,
-           error TEXT
-         )`,
-        `CREATE INDEX ix_monitor_results ON monitor_results(check_id, at)`,
-        ...registry.entities.flatMap((def) => createTableSql(def, registry.tableOf)),
-      ],
+      statements: [...BUSINESS_SCHEMA_V2],
     },
     {
       id: 3,
@@ -60,6 +42,43 @@ export function businessMigrations(registry: Registry): Migration[] {
            resolution TEXT
          )`,
         `CREATE INDEX ix_conflicts_open ON sync_conflicts(resolved_at)`,
+      ],
+    },
+    {
+      id: 4,
+      name: "warehouses-lots",
+      statements: [
+        `CREATE TABLE warehouses (
+           id TEXT PRIMARY KEY,
+           version INTEGER NOT NULL DEFAULT 1,
+           created_at TEXT NOT NULL,
+           updated_at TEXT NOT NULL,
+           deleted_at TEXT,
+           name TEXT NOT NULL,
+           address TEXT,
+           notes TEXT
+         )`,
+        `CREATE UNIQUE INDEX uq_warehouses_name ON warehouses(name) WHERE deleted_at IS NULL`,
+        `CREATE INDEX ix_warehouses_updated ON warehouses(updated_at)`,
+        `CREATE TABLE stock_lots (
+           id TEXT PRIMARY KEY,
+           version INTEGER NOT NULL DEFAULT 1,
+           created_at TEXT NOT NULL,
+           updated_at TEXT NOT NULL,
+           deleted_at TEXT,
+           product_id TEXT NOT NULL REFERENCES products(id),
+           code TEXT NOT NULL,
+           expiry_date TEXT,
+           notes TEXT
+         )`,
+        `CREATE INDEX ix_stock_lots_product_id ON stock_lots(product_id) WHERE deleted_at IS NULL`,
+        `CREATE UNIQUE INDEX uq_stock_lots_code_product_id ON stock_lots(code, product_id) WHERE deleted_at IS NULL`,
+        `CREATE INDEX ix_stock_lots_updated ON stock_lots(updated_at)`,
+        `ALTER TABLE products ADD COLUMN track_lots INTEGER CHECK (track_lots IS NULL OR track_lots IN (0, 1))`,
+        `ALTER TABLE stock_movements ADD COLUMN warehouse_id TEXT REFERENCES warehouses(id)`,
+        `ALTER TABLE stock_movements ADD COLUMN lot_id TEXT REFERENCES stock_lots(id)`,
+        `CREATE INDEX ix_stock_movements_warehouse_id ON stock_movements(warehouse_id) WHERE deleted_at IS NULL`,
+        `CREATE INDEX ix_stock_movements_lot_id ON stock_movements(lot_id) WHERE deleted_at IS NULL`,
       ],
     },
   ];

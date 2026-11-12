@@ -137,6 +137,8 @@ export const NAV: NavSection[] = [
           { label: "Giacenze", to: "inventory" },
           { label: "Prodotti", to: e("product") },
           { label: "Movimenti", to: e("stock_movement") },
+          { label: "Magazzini", to: e("warehouse") },
+          { label: "Lotti", to: e("stock_lot") },
         ],
       },
       {

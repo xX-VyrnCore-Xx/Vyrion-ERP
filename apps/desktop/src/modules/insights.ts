@@ -19,6 +19,7 @@ interface Source {
   params: (today: string, now: string) => (string | number)[];
   build: (
     row: Record<string, string | number | null>,
+    today: string,
   ) => Omit<Notification, "key"> & { key?: string };
 }
 
@@ -148,6 +149,22 @@ const SOURCES: Source[] = [
     }),
   },
   {
+    // Lots with goods still in stock that expire within 30 days or already have.
+    sql: q`SELECT l.id, l.code, l.expiry_date, p.name, ROUND(SUM(m.quantity), 3) AS q
+           FROM stock_lots l JOIN products p ON p.id = l.product_id
+           JOIN stock_movements m ON m.lot_id = l.id AND m.deleted_at IS NULL
+           WHERE l.deleted_at IS NULL AND l.expiry_date IS NOT NULL AND l.expiry_date <= date(?, '+30 day')
+           GROUP BY l.id HAVING q > 0`,
+    params: (today) => [today],
+    build: (r, today) => ({
+      severity: String(r["expiry_date"]) < today ? "danger" : "warning",
+      title: `${String(r["expiry_date"]) < today ? "Lotto scaduto" : "Lotto in scadenza"}: ${r["name"]} ${r["code"]}`,
+      detail: `${r["q"]} in giacenza, scade il ${r["expiry_date"]}`,
+      entity: "stock_lot",
+      id: String(r["id"]),
+    }),
+  },
+  {
     sql: q`SELECT a.id, a.title, a.starts_at FROM appointments a WHERE a.deleted_at IS NULL AND date(a.starts_at) = ?`,
     params: (today) => [today],
     build: (r) => ({
@@ -183,7 +200,7 @@ export async function notifications(
   for (const source of SOURCES) {
     const rows = await db.query(source.sql, source.params(today, now));
     for (const row of rows) {
-      const built = source.build(row);
+      const built = source.build(row, today);
       if (built.entity === "backup_job") {
         const status = row["last_status"] as string | null;
         const lastAt = row["last_at"] as string | null;
