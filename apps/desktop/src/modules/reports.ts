@@ -1,6 +1,5 @@
 import type { SqlRunner } from "../data/db";
 import { daysBetween } from "../lib/dates";
-import { percentOf } from "../lib/money";
 import { computeTotals, extrasFromRecord } from "./documents";
 import { productCosts, valueOf } from "./stock";
 
@@ -100,7 +99,7 @@ export async function vatSummary(db: SqlRunner, from: string, to: string): Promi
   );
   const bucket = new Map<
     string,
-    { direction: "sales" | "purchases"; rate: number; base: number; split: boolean }
+    { direction: "sales" | "purchases"; rate: number; base: number; vat: number; split: boolean }
   >();
   for (const doc of docs) {
     const lines = await db.query<{
@@ -129,19 +128,19 @@ export async function vatSummary(db: SqlRunner, from: string, to: string): Promi
     const split = direction === "sales" && Boolean(doc["split_payment"]);
     for (const group of totals.breakdown) {
       const key = `${direction}|${group.rate}|${split}`;
-      const entry = bucket.get(key) ?? { direction, rate: group.rate, base: 0, split };
+      const entry = bucket.get(key) ?? { direction, rate: group.rate, base: 0, vat: 0, split };
       entry.base += sign * group.base;
+      // The VAT is the sum of what each document shows, the way the registers add it up.
+      entry.vat += sign * group.vat;
       bucket.set(key, entry);
     }
   }
-  const rows = [...bucket.values()]
-    .map((r) => ({ ...r, vat: percentOf(r.base, r.rate) }))
-    .sort(
-      (a, b) =>
-        a.direction.localeCompare(b.direction) ||
-        Number(a.split) - Number(b.split) ||
-        b.rate - a.rate,
-    );
+  const rows = [...bucket.values()].sort(
+    (a, b) =>
+      a.direction.localeCompare(b.direction) ||
+      Number(a.split) - Number(b.split) ||
+      b.rate - a.rate,
+  );
   const sum = (direction: string, field: "base" | "vat", split = false) =>
     rows
       .filter((r) => r.direction === direction && r.split === split)

@@ -890,6 +890,67 @@ const bankTransaction: EntityDef = {
   },
 };
 
+export const VAT_PERIODICITY = opts([
+  ["monthly", "Mensile"],
+  ["quarterly", "Trimestrale"],
+]);
+
+/** A registered periodic VAT settlement (liquidazione periodica). */
+const vatSettlement: EntityDef = {
+  key: "vat_settlement",
+  module: "erp",
+  label: "Liquidazione IVA",
+  plural: "Liquidazioni IVA",
+  table: "vat_settlements",
+  title: (r) =>
+    `IVA ${r["year"]} · ${r["period_kind"] === "monthly" ? "mese" : "trimestre"} ${r["period"]}`,
+  defaultOrder: "date_to desc",
+  noDelete: false,
+  fields: [
+    {
+      name: "year",
+      label: "Anno",
+      type: "integer",
+      required: true,
+      min: 2000,
+      max: 2100,
+      list: true,
+    },
+    {
+      name: "period_kind",
+      label: "Periodicità",
+      type: "select",
+      options: VAT_PERIODICITY,
+      required: true,
+      list: true,
+    },
+    {
+      name: "period",
+      label: "Periodo",
+      type: "integer",
+      required: true,
+      min: 1,
+      max: 12,
+      unique: ["year", "period_kind"],
+      list: true,
+    },
+    { name: "date_from", label: "Dal", type: "date", required: true },
+    { name: "date_to", label: "Al", type: "date", required: true, list: true },
+    { name: "sales_vat", label: "IVA sulle vendite", type: "money", required: true },
+    { name: "purchases_vat", label: "IVA sugli acquisti", type: "money", required: true },
+    { name: "previous_credit", label: "Credito del periodo precedente", type: "money", default: 0 },
+    { name: "previous_debit", label: "Debito precedente riportato", type: "money", default: 0 },
+    { name: "interest", label: "Interessi trimestrali 1%", type: "money", default: 0 },
+    { name: "due", label: "Da versare", type: "money", default: 0, list: true },
+    { name: "credit_forward", label: "Credito da riportare", type: "money", default: 0 },
+    { name: "debit_forward", label: "Debito sotto soglia da riportare", type: "money", default: 0 },
+    { name: "notes", label: "Note", type: "longtext" },
+  ],
+  beforeDelete: async ({ tx, ctx, repo, record }) => {
+    await reverseEntries(tx, ctx, repo, record.id, "liquidazione IVA eliminata");
+  },
+};
+
 export const ERP_ENTITIES: EntityDef[] = [
   ACCOUNT,
   JOURNAL_ENTRY,
@@ -908,6 +969,7 @@ export const ERP_ENTITIES: EntityDef[] = [
   attachment,
   fixedAsset,
   bankTransaction,
+  vatSettlement,
 ];
 
 export type { Rec };

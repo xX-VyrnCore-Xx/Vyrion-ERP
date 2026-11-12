@@ -162,7 +162,15 @@ export const NAV: NavSection[] = [
           { label: "Ore", to: e("time_entry") },
         ],
       },
-      { label: "Report", icon: Boxes, to: "reports" },
+      {
+        label: "Report",
+        icon: Boxes,
+        to: "reports",
+        children: [
+          { label: "Report del periodo", to: "reports" },
+          { label: "Registri IVA e liquidazione", to: "vat" },
+        ],
+      },
     ],
   },
   {

@@ -7,6 +7,22 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ### Added
 
+- **Registri IVA e liquidazione** (Report → Registri IVA e liquidazione): registro delle vendite e
+  degli acquisti con protocollo progressivo, totali per aliquota e IVA in split payment elencata
+  a parte, esportabili in CSV; **liquidazione periodica** mensile o trimestrale: IVA sulle vendite
+  meno IVA sugli acquisti, credito del periodo precedente, debito sotto € 25,82 riportato,
+  interessi dell'1% sui trimestri 1–3, scadenza del versamento e acconto di dicembre col metodo
+  storico. «Registra la liquidazione» chiude l'IVA del periodo in prima nota (conto «Erario
+  c/IVA») e si può annullare. È uno strumento di lavoro: non invia nulla e le regole generali
+  vanno confermate dal commercialista.
+
+### Changed
+
+- Il riepilogo IVA del periodo somma l'IVA dei singoli documenti (come i registri) invece di
+  ricalcolarla sulla base aggregata, così i due coincidono al centesimo.
+
+### Added
+
 - **Cassa previdenziale, ritenuta d'acconto e split payment** sui documenti: la cassa (es. 4%) si
   aggiunge alla base dell'IVA con l'aliquota delle righe; la ritenuta (es. 20%, quota imponibile
   e inclusione della cassa a scelta) si calcola su compensi e cassa, mai sull'IVA; con lo split
