@@ -7,6 +7,19 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ### Added
 
+- **Sidebar**: i gruppi CRM, ERP, IT e Server restano sempre aperti; si chiudono solo i sottomenu al loro interno.
+- **Console del server dentro al software**: nuova sezione «Server» nella Sidebar con un
+  sottoprogramma a menu proprio: stato e sincronizzazione (salute, coda, conflitti, dispositivi),
+  utenti (invito, attiva/disattiva, ruoli, reset password e 2FA, disconnessione), ruoli e permessi,
+  registro attività, sessioni e accessi, dati dell'azienda sul server.
+- **Sincronizzazione al ritorno online**: se il server o la rete non ci sono, il software lavora
+  in locale e riprova da solo con pause crescenti (5, 10, 20, 40, 60 s, con conto alla rovescia);
+  appena torna la rete (o il server) invia le modifiche in coda e scarica quelle degli altri.
+  Le modifiche locali partono dopo pochi secondi, senza aspettare il minuto.
+- Server: `GET /api/v1/sync/status` (record, modifiche, dispositivi) per la console.
+
+### Added
+
 - **Ricerca globale molto più intelligente** (Ctrl/Cmd+K oppure «/»): cerca in pagine, azioni e
   record di tutto il software, capisce sinonimi (incassi → scadenzario, committente → clienti),
   plurali e errori di battitura, e capisce le intenzioni («nuovo cliente», «fatture scadute»).

@@ -26,9 +26,17 @@ const SESSION = "sync.session";
 const AUTO_EVERY_MS = 60_000;
 /** With the window hidden only one tick in this many runs. */
 const HIDDEN_FACTOR = 5;
+/** Retry delays after the server could not be reached, in seconds; the last repeats. */
+const RETRY_STEPS = [5, 10, 20, 40, 60];
+/** Wait after the last local change before sending it. */
+const WRITE_DEBOUNCE_MS = 1500;
 
 export interface SyncState {
   connected: boolean;
+  /** Whether the last attempt reached the server (null before the first attempt). */
+  reachable: boolean | null;
+  /** Seconds until the next automatic retry while the server is unreachable. */
+  retryIn: number | null;
   email: string | null;
   serverUrl: string | null;
   syncing: boolean;
@@ -50,10 +58,14 @@ export interface SyncApi extends SyncState {
   syncNow(): Promise<void>;
   resolve(conflictId: number, choice: "mine" | "server"): Promise<void>;
   disconnect(): Promise<void>;
+  /** A signed-in call to the server API; rejects when not connected. */
+  request<T>(method: string, path: string, body?: unknown): Promise<T>;
 }
 
 const EMPTY: SyncState = {
   connected: false,
+  reachable: null,
+  retryIn: null,
   email: null,
   serverUrl: null,
   syncing: false,
@@ -85,6 +97,10 @@ export function SyncProvider({ ws, children }: { ws: Workspace; children: ReactN
   const engineRef = useRef<SyncEngine | null>(null);
   const challenge = useRef<{ serverUrl: string; email: string; token: string } | null>(null);
   const busy = useRef(false);
+  const transportRef = useRef<HttpTransport | null>(null);
+  const failures = useRef(0);
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const countdown = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const patch = useCallback((next: Partial<SyncState>) => setState((s) => ({ ...s, ...next })), []);
 
@@ -103,31 +119,60 @@ export function SyncProvider({ ws, children }: { ws: Workspace; children: ReactN
       const transport = new HttpTransport(session, ws.deviceId, (renewed) =>
         setSetting(ws.db, SESSION, renewed, ws.ctx.now()),
       );
+      transportRef.current = transport;
       return new SyncEngine(ws, transport);
     },
     [ws],
   );
 
+  const runRef = useRef<() => Promise<void>>(() => Promise.resolve());
+  const clearRetry = useCallback(() => {
+    if (retryTimer.current) clearTimeout(retryTimer.current);
+    if (countdown.current) clearInterval(countdown.current);
+    retryTimer.current = null;
+    countdown.current = null;
+  }, []);
+
   const run = useCallback(async () => {
     const engine = engineRef.current;
     if (!engine || busy.current) return;
     busy.current = true;
+    clearRetry();
     patch({ syncing: true, error: null });
+    let unreachable = false;
     try {
       const report = await engine.syncNow();
-      patch({ lastReport: report });
+      failures.current = 0;
+      patch({ lastReport: report, reachable: true, retryIn: null });
     } catch (error) {
-      const text =
-        error instanceof ServerError && error.code === "network"
-          ? "Server non raggiungibile: i dati restano sul computer e si invieranno appena possibile."
-          : message(error);
-      patch({ error: text });
+      unreachable =
+        error instanceof ServerError && (error.code === "network" || error.code === "timeout");
+      const text = unreachable
+        ? "Server non raggiungibile: i dati restano sul computer e si invieranno appena possibile."
+        : message(error);
+      patch({ error: text, ...(unreachable ? { reachable: false } : { reachable: true }) });
     } finally {
       busy.current = false;
       patch({ syncing: false });
       await refresh();
     }
-  }, [patch, refresh]);
+    if (unreachable) {
+      // Keep trying with growing pauses, and show the person when the next attempt comes.
+      const step = RETRY_STEPS[Math.min(failures.current, RETRY_STEPS.length - 1)] ?? 60;
+      failures.current++;
+      let left = step;
+      patch({ retryIn: left });
+      countdown.current = setInterval(() => {
+        left = Math.max(0, left - 1);
+        patch({ retryIn: left });
+      }, 1000);
+      retryTimer.current = setTimeout(() => void runRef.current(), step * 1000);
+    }
+  }, [patch, refresh, clearRetry]);
+
+  useEffect(() => {
+    runRef.current = run;
+  }, [run]);
 
   // Resume the saved link at start.
   useEffect(() => {
@@ -157,14 +202,38 @@ export function SyncProvider({ ws, children }: { ws: Workspace; children: ReactN
     const onVisible = () => {
       if (!isHidden()) void run();
     };
+    // The network is back: do not wait for the timer, send and fetch right now.
+    const onOnline = () => {
+      failures.current = 0;
+      void run();
+    };
+    const onOffline = () => patch({ reachable: false });
+    // Local changes go out a moment after the last one, not only once a minute.
+    let writeTimer: ReturnType<typeof setTimeout> | undefined;
+    const unsubscribe = ws.subscribe(() => {
+      clearTimeout(writeTimer);
+      writeTimer = setTimeout(() => {
+        void (async () => {
+          if ((await engineRef.current?.pendingCount()) ?? 0) await run();
+          else await refresh();
+        })();
+      }, WRITE_DEBOUNCE_MS);
+    });
     window.addEventListener("focus", onFocus);
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
     document.addEventListener("visibilitychange", onVisible);
     return () => {
       clearInterval(timer);
+      clearTimeout(writeTimer);
+      unsubscribe();
+      clearRetry();
       window.removeEventListener("focus", onFocus);
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [state.connected, run]);
+  }, [state.connected, run, ws, patch, refresh, clearRetry]);
 
   const start = useCallback(
     async (session: SyncSession) => {
@@ -203,16 +272,23 @@ export function SyncProvider({ ws, children }: { ws: Workspace; children: ReactN
         await refresh();
         await run();
       },
+      request<T>(method: string, path: string, body?: unknown): Promise<T> {
+        const transport = transportRef.current;
+        if (!transport) return Promise.reject(new Error("Non sei collegato al server"));
+        return transport.request<T>(method, path, body);
+      },
       async disconnect() {
         const session = await getSetting<SyncSession>(ws.db, SESSION);
         await engineRef.current?.disconnect();
         if (session) await logout(session);
         await setSetting(ws.db, SESSION, null, ws.ctx.now());
         engineRef.current = null;
+        transportRef.current = null;
+        clearRetry();
         setState(EMPTY);
       },
     }),
-    [state, run, start, refresh, ws],
+    [state, run, start, refresh, ws, clearRetry],
   );
 
   return <Context.Provider value={api}>{children}</Context.Provider>;

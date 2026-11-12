@@ -46,6 +46,15 @@ describe("menu model", () => {
 });
 
 describe("Sidebar", () => {
+  it("keeps the CRM, ERP, IT and Server groups always open", () => {
+    show(place(""));
+    for (const name of ["CRM", "ERP", "IT", "Server"]) {
+      expect(screen.getByRole("heading", { name })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
+    }
+    expect(screen.getByRole("link", { name: "Anagrafiche" })).toBeInTheDocument();
+  });
+
   it("opens the sub-menu of the page the person is on and highlights the entry", () => {
     show(place("e/contact"));
     const sub = screen.getByRole("list", { name: "Sottomenu Anagrafiche" });
@@ -78,17 +87,6 @@ describe("Sidebar", () => {
     await user.click(screen.getByRole("link", { name: "Pipeline" }));
     expect(go).toHaveBeenCalledWith("pipeline");
     expect(screen.getByRole("list", { name: "Sottomenu Pipeline" })).toBeInTheDocument();
-  });
-
-  it("folds a group but keeps the entry the person is on", async () => {
-    const user = userEvent.setup();
-    show(place("e/party"));
-    expect(screen.getByRole("link", { name: "Pipeline" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "CRM" }));
-    expect(screen.queryByRole("link", { name: "Pipeline" })).toBeNull();
-    expect(screen.getByRole("link", { name: "Anagrafiche" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "CRM" }));
-    expect(screen.getByRole("link", { name: "Pipeline" })).toBeInTheDocument();
   });
 
   it("no longer has a Settings entry: they are in the account menu", () => {

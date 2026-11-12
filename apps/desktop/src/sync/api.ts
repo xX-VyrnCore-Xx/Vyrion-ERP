@@ -64,6 +64,7 @@ export interface WirePage {
 
 /** What the engine needs from a server; tests provide their own. */
 export interface Transport {
+  request?<T>(method: string, path: string, body?: unknown): Promise<T>;
   push(operations: WireOperation[]): Promise<WireResult[]>;
   pull(after: number, limit: number): Promise<WirePage>;
 }
@@ -204,6 +205,11 @@ export class HttpTransport implements Transport {
     const tokens = (result.tokens ?? result) as WireTokens;
     this.session = toSession(this.session.serverUrl, this.session.email, tokens);
     await this.onSession(this.session);
+  }
+
+  /** One signed-in call to any server route (used by the server console). */
+  request<T>(method: string, path: string, body?: unknown): Promise<T> {
+    return this.authed<T>(method, path, body);
   }
 
   private async authed<T>(method: string, path: string, body?: unknown): Promise<T> {

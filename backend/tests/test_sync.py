@@ -286,3 +286,16 @@ async def test_the_change_log_cannot_be_rewritten(api: Api) -> None:
     with pytest.raises(DBAPIError):
         await api.session.execute(text("UPDATE sync_changes SET entity = 'other'"))
     await api.session.rollback()
+
+
+async def test_status_reports_totals_and_the_devices_that_pushed(api: Api) -> None:
+    tokens = await _tokens(api)
+    record = uuid7()
+    _first(await _push(api, tokens, DEVICE_A, _op("create", "party", record, 0, {"name": "Acme"})))
+    response = await api.client.get(f"{BASE}/sync/status", headers=bearer(tokens))
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["records"] == 1
+    assert body["changes"] == 1
+    assert body["head_seq"] >= 1
+    assert [d["device_id"] for d in body["devices"]] == [str(DEVICE_A)]
