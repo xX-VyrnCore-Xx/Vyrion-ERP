@@ -7,6 +7,9 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ### Added
 
+- **Test end-to-end contro il server vero in CI** (job «End-to-end»): sincronizzazione tra due
+  dispositivi, lavoro offline e ripresa, conflitti, rinnovo del token e flussi della console.
+  Test di prestazioni con 3000 record e revisione di sicurezza interna (SECURITY.md).
 - **Backup automatico del server** (milestone 10): servizio `backup` nello stack Compose con
   `pg_dump` cifrato `age` (solo chiave pubblica sul server), checksum, rotazione 7 giornalieri /
   4 settimanali / 12 mensili, seconda destinazione verificata, controllo di integrità e prova di

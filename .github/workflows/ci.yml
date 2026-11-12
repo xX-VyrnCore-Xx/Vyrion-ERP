@@ -120,6 +120,77 @@ jobs:
           tool: cargo-audit
       - run: cargo audit
 
+  e2e:
+    name: End-to-end (desktop sync + console against the real server)
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: vyrion_e2e
+          POSTGRES_USER: vyrion
+          POSTGRES_PASSWORD: ci-only-password
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U vyrion -d vyrion_e2e"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:8-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      VYRION_ENVIRONMENT: development
+      VYRION_DATABASE_URL: postgresql+psycopg://vyrion:ci-only-password@127.0.0.1:5432/vyrion_e2e
+      VYRION_REDIS_URL: redis://127.0.0.1:6379/0
+      E2E_PASSWORD: ci-only-E2E-passphrase-42
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - name: Start the server
+        working-directory: backend
+        run: |
+          uv sync --frozen --no-dev
+          key="$(uv run python -m app.cli generate-key)"
+          export VYRION_ENCRYPTION_KEYS="$key"
+          uv run alembic upgrade head
+          uv run python -m app.cli bootstrap
+          uv run python - <<'PY'
+          import asyncio, os
+          from app.cli import create_admin
+          asyncio.run(create_admin("e2e@example.com", "E2E Admin", os.environ["E2E_PASSWORD"]))
+          PY
+          nohup uv run uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000 > "$RUNNER_TEMP/server.log" 2>&1 &
+          for _ in $(seq 1 30); do
+            curl -fs http://127.0.0.1:8000/api/v1/health/ready && break
+            sleep 1
+          done
+          curl -fs http://127.0.0.1:8000/api/v1/health/ready
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: apps/desktop/package.json
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: apps/desktop/pnpm-lock.yaml
+      - name: Install desktop dependencies
+        working-directory: apps/desktop
+        run: pnpm install --frozen-lockfile
+      - name: Sync and console flows against the server
+        working-directory: apps/desktop
+        env:
+          VYRION_E2E_URL: http://127.0.0.1:8000
+          VYRION_E2E_EMAIL: e2e@example.com
+          VYRION_E2E_PASSWORD: ${{ env.E2E_PASSWORD }}
+        run: pnpm vitest run src/sync/__tests__/e2e.test.ts
+      - name: Server log (on failure)
+        if: failure()
+        run: cat "$RUNNER_TEMP/server.log" || true
+
   backup:
     name: Backup scripts (lint, end-to-end on PostgreSQL)
     runs-on: ubuntu-24.04
