@@ -3,9 +3,18 @@ import { useState, type FormEvent } from "react";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { useSync } from "../app/sync";
+import { relativeTime, summarizeSync, type SyncTone } from "../app/syncStatus";
 import { REASONS } from "../sync/engine";
 import { formatInstant } from "../ui/format";
 import { Badge, ErrorNote } from "../ui/parts";
+
+const DOT: Record<SyncTone, string> = {
+  ok: "bg-success",
+  info: "bg-info animate-pulse",
+  warning: "bg-warning",
+  danger: "bg-danger",
+  muted: "bg-muted",
+};
 
 const show = (value: unknown): string =>
   value === null || value === undefined || value === "" ? "—" : String(value);
@@ -19,19 +28,34 @@ export function SyncCard({ serverUrl }: { serverUrl: string | null }) {
   const [needsCode, setNeedsCode] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+  // Signing in again after the session expired: same server and account, only the password.
+  const resume = sync.connected && sync.needsLogin;
+
+  const copyDiagnostics = async () => {
+    try {
+      await navigator.clipboard.writeText(sync.diagnostics());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      setMessage("Non riesco a copiare negli appunti: seleziona e copia il testo a mano.");
+    }
+  };
 
   const fail = (error: unknown) =>
     setMessage(error instanceof Error ? error.message : String(error));
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!serverUrl) return;
+    const url = resume ? sync.serverUrl : serverUrl;
+    const account = resume ? (sync.email ?? "") : email.trim();
+    if (!url) return;
     setMessage(null);
     setBusy(true);
     try {
       if (needsCode) {
         await sync.finishConnect(code);
-      } else if ((await sync.connect(serverUrl, email.trim(), password)) === "second_factor") {
+      } else if ((await sync.connect(url, account, password)) === "second_factor") {
         setNeedsCode(true);
         return;
       }
@@ -48,28 +72,38 @@ export function SyncCard({ serverUrl }: { serverUrl: string | null }) {
   const input = "w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm text-fg";
   return (
     <Card title="Sincronizzazione">
-      {!sync.connected ? (
+      {!sync.connected || resume ? (
         <form onSubmit={(e) => void submit(e)} className="space-y-3">
-          <p className="text-sm text-muted">
-            Collega questa installazione al server aziendale per condividere i dati con gli altri
-            computer. I dati già inseriti vengono inviati al primo collegamento; puoi scollegarti
-            quando vuoi e continuare a lavorare da solo.
-          </p>
-          {!serverUrl ? (
+          {resume ? (
+            <div
+              role="alert"
+              className="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger"
+            >
+              La sessione con il server è scaduta. Accedi di nuovo con la password: le modifiche non
+              ancora inviate ({sync.pending}) restano al sicuro e partono subito dopo.
+            </div>
+          ) : (
+            <p className="text-sm text-muted">
+              Collega questa installazione al server aziendale per condividere i dati con gli altri
+              computer. I dati già inseriti vengono inviati al primo collegamento; puoi scollegarti
+              quando vuoi e continuare a lavorare da solo.
+            </p>
+          )}
+          {!serverUrl && !resume ? (
             <p className="text-sm text-warning">
               Inserisci prima l'indirizzo del server qui sopra.
             </p>
           ) : (
             <>
-              <p className="text-xs text-muted">Server: {serverUrl}</p>
+              <p className="text-xs text-muted">Server: {resume ? sync.serverUrl : serverUrl}</p>
               <label className="block text-xs font-medium text-muted">
                 Email
                 <input
                   className={`${input} mt-1`}
                   type="email"
                   autoComplete="username"
-                  value={email}
-                  disabled={needsCode}
+                  value={resume ? (sync.email ?? "") : email}
+                  disabled={needsCode || resume}
                   onChange={(e) => setEmail(e.target.value)}
                 />
               </label>
@@ -97,14 +131,36 @@ export function SyncCard({ serverUrl }: { serverUrl: string | null }) {
                 </label>
               ) : null}
               <ErrorNote message={message} />
-              <Button type="submit" variant="primary" disabled={busy || !email || !password}>
-                {busy ? "Collegamento…" : needsCode ? "Conferma" : "Collega"}
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={busy || (!resume && !email) || (!needsCode && !password)}
+              >
+                {busy ? "Collegamento…" : needsCode ? "Conferma" : resume ? "Accedi" : "Collega"}
               </Button>
             </>
           )}
         </form>
       ) : (
         <div className="space-y-4">
+          {(() => {
+            const summary = summarizeSync(sync);
+            return summary ? (
+              <p
+                role="status"
+                className="flex items-center gap-2 rounded-lg border border-line bg-raised px-3 py-2 text-sm font-medium text-fg"
+              >
+                <span
+                  aria-hidden="true"
+                  className={`size-2.5 shrink-0 rounded-full ${DOT[summary.tone]}`}
+                />
+                {summary.label}
+                <span className="ml-auto text-xs font-normal text-muted">
+                  ultimo scambio: {relativeTime(sync.lastSyncAt)}
+                </span>
+              </p>
+            ) : null;
+          })()}
           <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm">
             <dt className="text-muted">Collegato come</dt>
             <dd>{sync.email}</dd>
@@ -147,6 +203,9 @@ export function SyncCard({ serverUrl }: { serverUrl: string | null }) {
             </Button>
             <Button disabled={sync.syncing} onClick={() => void sync.disconnect().catch(fail)}>
               Scollega
+            </Button>
+            <Button onClick={() => void copyDiagnostics()}>
+              {copied ? "Copiato negli appunti" : "Copia diagnostica"}
             </Button>
           </div>
           <p className="text-xs text-muted">
