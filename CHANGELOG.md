@@ -7,6 +7,7 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ### Added
 
+- **Sidebar**: i gruppi CRM, ERP, IT e Server restano sempre aperti; si chiudono solo i sottomenu al loro interno.
 - **Console del server dentro al software**: nuova sezione «Server» nella Sidebar con un
   sottoprogramma a menu proprio: stato e sincronizzazione (salute, coda, conflitti, dispositivi),
   utenti (invito, attiva/disattiva, ruoli, reset password e 2FA, disconnessione), ruoli e permessi,

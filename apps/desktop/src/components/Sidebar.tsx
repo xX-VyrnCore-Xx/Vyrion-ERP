@@ -18,9 +18,8 @@ interface SidebarProps {
   onThemeChange: (theme: Theme) => void;
 }
 
-/** Which section groups are folded and which sub-menus were opened or closed by hand. */
+/** Which sub-menus were opened or closed by hand. */
 interface NavMemory {
-  folded: Record<string, boolean>;
   items: Record<string, boolean>;
 }
 const MEMORY_KEY = "vyrion.nav";
@@ -30,12 +29,12 @@ function readMemory(): NavMemory {
     const raw = window.localStorage.getItem(MEMORY_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<NavMemory>;
-      return { folded: parsed.folded ?? {}, items: parsed.items ?? {} };
+      return { items: parsed.items ?? {} };
     }
   } catch {
     /* the layout is remembered only for this session */
   }
-  return { folded: {}, items: {} };
+  return { items: {} };
 }
 
 export function Sidebar({
@@ -55,9 +54,6 @@ export function Sidebar({
     }
   }, [memory]);
 
-  const toggleSection = useCallback((title: string) => {
-    setMemory((m) => ({ ...m, folded: { ...m.folded, [title]: !m.folded[title] } }));
-  }, []);
   const setItemOpen = useCallback((to: string, open: boolean) => {
     setMemory((m) => ({ ...m, items: { ...m.items, [to]: open } }));
   }, []);
@@ -150,29 +146,15 @@ export function Sidebar({
       <nav aria-label={t.nav.label} className="flex-1 overflow-y-auto px-2 pb-2">
         {NAV.map((section, index) => {
           const title = section.title;
-          const folded = title !== null && memory.folded[title] === true;
-          // A folded group still shows the entry the person is on.
-          const items = folded
-            ? section.items.filter((item) => itemIsHere(item, place))
-            : section.items;
+          // The CRM, ERP, IT and Server groups always stay open: only the sub-menus fold.
           return (
             <div key={title ?? index} className="mb-1.5">
               {title ? (
-                <button
-                  type="button"
-                  aria-expanded={!folded}
-                  onClick={() => toggleSection(title)}
-                  className="flex w-full items-center justify-between rounded px-2 pb-0.5 pt-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-muted hover:text-fg"
-                >
+                <h2 className="px-2 pb-0.5 pt-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-muted">
                   {title}
-                  {folded ? (
-                    <ChevronRight aria-hidden="true" className="size-3" />
-                  ) : (
-                    <ChevronDown aria-hidden="true" className="size-3" />
-                  )}
-                </button>
+                </h2>
               ) : null}
-              <ul className="space-y-px">{items.map(renderItem)}</ul>
+              <ul className="space-y-px">{section.items.map(renderItem)}</ul>
             </div>
           );
         })}
