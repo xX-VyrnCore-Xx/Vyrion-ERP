@@ -34,7 +34,7 @@ tools/release/       Versionamento, pulizia delle release e relativi test
 
 ## Avvio rapido (sviluppo)
 
-Prerequisiti: Python 3.15 con [uv](https://docs.astral.sh/uv/), Node 22 con pnpm 10, Rust stabile,
+Prerequisiti: Python 3.15 con [uv](https://docs.astral.sh/uv/), Node 22 con pnpm 11, Rust stabile,
 PostgreSQL 18 e Redis 8 (locali o via Docker).
 
 Backend:
