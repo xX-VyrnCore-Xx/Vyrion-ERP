@@ -5,6 +5,15 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ## [Unreleased]
 
+### Added
+
+- **Ricerca globale molto più intelligente** (Ctrl/Cmd+K oppure «/»): cerca in pagine, azioni e
+  record di tutto il software, capisce sinonimi (incassi → scadenzario, committente → clienti),
+  plurali e errori di battitura, e capisce le intenzioni («nuovo cliente», «fatture scadute»).
+  I risultati sono raggruppati (Azioni, Pagine, record, Collegati), con evidenziazione, navigazione
+  da tastiera, ricerche recenti e «Intendevi…?». È un motore lessicale locale, senza modelli di IA
+  né dati inviati all'esterno.
+
 ### Changed
 
 - **Palette rinnovata** (tema scuro e chiaro): neutri freddi con una punta di viola, un solo accento
