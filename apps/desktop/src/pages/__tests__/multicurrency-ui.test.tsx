@@ -27,7 +27,7 @@ describe("invoice in a foreign currency", () => {
     await user.type(screen.getByLabelText("Valuta"), "usd");
     await user.type(screen.getByLabelText("Cambio"), "1,1");
     // total in the currency, and its euro value
-    expect((await screen.findAllByText(/1220,00 USD/)).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText(/1\.220,00 USD/)).length).toBeGreaterThan(0);
     expect(await screen.findByText(/Controvalore in euro al cambio 1,1/)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Emetti" }));

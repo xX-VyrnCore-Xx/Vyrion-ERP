@@ -9,6 +9,7 @@ import { AppError, ValidationError, VersionConflictError } from "../data/errors"
 import { parseMoney } from "../lib/money";
 import { AttachmentsPanel } from "../ui/AttachmentsPanel";
 import { Field } from "../ui/Field";
+import { sectionsFor } from "../ui/formGroups";
 import { initialValues, type FormValues } from "../ui/format";
 import { HistoryPanel } from "../ui/HistoryPanel";
 import { ConfirmDialog, ErrorNote } from "../ui/parts";
@@ -227,18 +228,32 @@ function FormBody({
           </div>
         ) : null}
         <form onSubmit={(e) => void submit(e)} noValidate className="space-y-4">
-          <div className="grid gap-4 rounded-xl border border-line bg-surface p-5 sm:grid-cols-2">
-            {visible.map((field) => (
-              <div key={field.name} className={field.type === "longtext" ? "sm:col-span-2" : ""}>
-                <Field
-                  field={field}
-                  value={values[field.name] ?? ""}
-                  onChange={(v) => setValues((s) => ({ ...s, [field.name]: v }))}
-                  error={errors[field.name]}
-                  disabled={Boolean(lockedReason)}
-                  choices={choices[field.name] ?? []}
-                />
-              </div>
+          <div className="divide-y divide-line rounded-xl border border-line bg-surface shadow-card">
+            {sectionsFor(def.key, visible).map((section) => (
+              <fieldset key={section.title ?? "all"} className="m-0 min-w-0 border-0 px-5 py-4">
+                {section.title ? (
+                  <legend className="mb-3 float-left w-full text-[11px] font-semibold uppercase tracking-wider text-muted">
+                    {section.title}
+                  </legend>
+                ) : null}
+                <div className="clear-both grid gap-x-4 gap-y-3 sm:grid-cols-2">
+                  {section.fields.map((field) => (
+                    <div
+                      key={field.name}
+                      className={field.type === "longtext" ? "sm:col-span-2" : ""}
+                    >
+                      <Field
+                        field={field}
+                        value={values[field.name] ?? ""}
+                        onChange={(v) => setValues((s) => ({ ...s, [field.name]: v }))}
+                        error={errors[field.name]}
+                        disabled={Boolean(lockedReason)}
+                        choices={choices[field.name] ?? []}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </fieldset>
             ))}
           </div>
           <ErrorNote message={message} />
@@ -247,7 +262,7 @@ function FormBody({
               Salvato.
             </p>
           ) : null}
-          <div className="flex gap-2">
+          <div className="sticky -bottom-8 z-10 -mx-1 flex gap-2 border-t border-line bg-bg/90 px-1 py-3 backdrop-blur">
             {!lockedReason ? (
               <Button type="submit" variant="primary" disabled={busy}>
                 {record ? "Salva modifiche" : "Crea"}

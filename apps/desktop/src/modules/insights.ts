@@ -350,3 +350,29 @@ export async function kpis(db: SqlRunner, today: string): Promise<Kpis> {
     ),
   };
 }
+
+/** Net revenue (invoices minus credit notes) of each of the last `months` months, oldest first. */
+export async function revenueByMonth(
+  db: SqlRunner,
+  today: string,
+  months = 12,
+): Promise<{ month: string; amount: number }[]> {
+  const year = Number(today.slice(0, 4));
+  const month = Number(today.slice(5, 7));
+  const list: string[] = [];
+  for (let i = months - 1; i >= 0; i--) {
+    const index = year * 12 + (month - 1) - i;
+    list.push(`${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, "0")}`);
+  }
+  const rows = await db.query<{ m: string; v: number | null }>(
+    `SELECT substr(date, 1, 7) AS m,
+            SUM(CASE WHEN type = 'credit_note' THEN -net_total ELSE net_total END) AS v
+     FROM documents
+     WHERE status = 'issued' AND deleted_at IS NULL AND type IN ('invoice', 'credit_note')
+       AND date >= ? AND date <= ?
+     GROUP BY m`,
+    [`${list[0]}-01`, `${list[list.length - 1]}-31`],
+  );
+  const by = new Map(rows.map((r) => [r.m, Number(r.v ?? 0)]));
+  return list.map((m) => ({ month: m, amount: by.get(m) ?? 0 }));
+}

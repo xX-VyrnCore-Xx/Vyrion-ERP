@@ -24,5 +24,10 @@ export async function boot(): Promise<Booted> {
   const { db, volatile } = await openDatabase();
   const ws = await Workspace.open({ db, entities: ALL_ENTITIES, migrations: businessMigrations });
   await seedDefaults(ws);
+  // Development only: `?demo` fills the in-memory database with sample data.
+  if (import.meta.env.DEV && volatile && window.location.search.includes("demo")) {
+    const { seedDemo } = await import("./demoData");
+    await seedDemo(ws);
+  }
   return { ws, volatile };
 }

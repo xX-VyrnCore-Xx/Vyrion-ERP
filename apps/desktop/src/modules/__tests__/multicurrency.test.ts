@@ -246,7 +246,7 @@ describe("invoices in a foreign currency", () => {
     const { content } = await buildDocumentPdf(ws, doc.id);
     const hex = (text: string) =>
       [...text].map((c) => c.charCodeAt(0).toString(16).toUpperCase().padStart(2, "0")).join("");
-    expect(content).toContain(hex("1220,00 USD"));
+    expect(content).toContain(hex("1.220,00 USD"));
     expect(content).toContain(hex("Controvalore in euro (cambio 1,1)"));
     if (process.env["VYRION_PDF_OUT"])
       writeFileSync(`${process.env["VYRION_PDF_OUT"]}.usd.pdf`, content);

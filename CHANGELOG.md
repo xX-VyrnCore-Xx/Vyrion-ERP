@@ -43,6 +43,15 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ### Changed
 
+- **Panoramica più ricca**: azioni rapide (nuova fattura, preventivo, anagrafica, ticket, appuntamento), indicatori
+  raggruppati in Finanza, Vendite e assistenza, IT con icona colorata (i valori critici diventano rossi),
+  grafico dei **ricavi degli ultimi 12 mesi** e barra dei **crediti per scadenza**.
+- **Moduli a sezioni**: la scheda di anagrafiche, dipendenti e prodotti è divisa in sezioni con titolo
+  (nessun campo viene perso); i pulsanti Crea/Salva restano in vista mentre si scorre; le righe delle tabelle
+  si evidenziano al passaggio del mouse.
+- **Importi con il separatore delle migliaia anche sotto i 10.000** (1.220,00 € invece di 1220,00 €).
+- Sviluppo: `?demo` nell'indirizzo di `pnpm dev` riempie il database in memoria con dati di esempio.
+
 - **Barra laterale rinnovata**: può ridursi a sole icone (pulsante in alto o Ctrl/Cmd+B, scelta ricordata) con nome
   e suggerimento su ogni icona; indicatore laterale sull'elemento attivo, puntino colorato per CRM, ERP e IT,
   spaziatura più ariosa e larghezza maggiore. CRM, ERP e IT restano sempre aperti: si chiudono solo i sottomenu.
