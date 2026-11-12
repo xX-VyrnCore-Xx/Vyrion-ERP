@@ -4,7 +4,9 @@
 //! credential store (Windows Credential Manager, macOS Keychain). It never touches the
 //! database file, so a copied `vyrion.db` is unreadable on any other machine or account.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
+#[cfg(any(test, not(any(target_os = "windows", target_os = "macos"))))]
+use std::path::PathBuf;
 
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 pub const SERVICE: &str = "com.vyrncore.vyrion-erp";
@@ -40,11 +42,14 @@ pub fn is_valid_key_hex(value: &str) -> bool {
 }
 
 /// A key kept in a file readable only by the owner. Used where no credential store is
-/// available (development on Linux) and in tests.
+/// available (development on Linux) and in tests; on Windows and macOS the build leaves it
+/// out, so it cannot be flagged as dead code there.
+#[cfg(any(test, not(any(target_os = "windows", target_os = "macos"))))]
 pub struct FileKeyStore {
     path: PathBuf,
 }
 
+#[cfg(any(test, not(any(target_os = "windows", target_os = "macos"))))]
 impl FileKeyStore {
     pub fn new(path: impl AsRef<Path>) -> Self {
         Self {
@@ -53,6 +58,7 @@ impl FileKeyStore {
     }
 }
 
+#[cfg(any(test, not(any(target_os = "windows", target_os = "macos"))))]
 impl KeyStore for FileKeyStore {
     fn name(&self) -> &'static str {
         "file"
