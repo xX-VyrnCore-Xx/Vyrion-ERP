@@ -23,9 +23,10 @@ fase si chiude al raggiungimento dei criteri, non a calendario.
 - Fatturazione elettronica: generazione FatturaPA e integrazione SDI tramite intermediario.
 - Esportazioni per il commercialista.
 - Integrazione email nel CRM.
+- Buste paga e presenze; fatture multi-valuta.
 - Agenti di monitoraggio per postazioni e server.
 - Ruoli personalizzati avanzati e autorizzazioni per singolo record estese a tutti i moduli.
 
 ## Stato
 
-Versione corrente: `0.1.0-alpha.1`. Dettaglio in [PLAN.md](PLAN.md).
+Versione corrente: `0.1.19` (build automatica a ogni merge su `main`; milestone 1–10 completate, 11–12 parziali). Dettaglio in [PLAN.md](PLAN.md).
