@@ -9,7 +9,7 @@ ha un'implementazione reale e testata.
 
 | Area | Implementato | Non ancora |
 | --- | --- | --- |
-| **Anagrafiche** | Clienti, fornitori, partner, potenziali clienti; contatti; partita IVA, codice fiscale e IBAN validati per checksum | Importazione da file; unione di duplicati |
+| **Anagrafiche** | Clienti, fornitori, partner, potenziali clienti; contatti; partita IVA, codice fiscale e IBAN validati per checksum; **importazione da CSV** (mappatura colonne, controllo riga per riga, salto dei già presenti) su tutte le entità non contabili; **ricerca e unione dei duplicati** (partita IVA, codice fiscale, email, nome), con blocco se il duplicato ha documenti emessi | Fusione automatica con regole su campi in conflitto (oggi si completano solo i campi vuoti) |
 | **Pipeline** | Fasi configurabili, opportunità, vista a colonne, valore ponderato, data di chiusura automatica | Trascinamento con il mouse (si sposta con un menu) |
 | **Comunicazioni, agenda, attività** | Registro di chiamate/email/incontri (inseriti a mano), appuntamenti, attività con scadenza, calendario mensile | **Integrazione email**, sincronizzazione con calendari esterni, promemoria di sistema |
 | **Contratti e assistenza** | Contratti con preavviso di disdetta; ticket numerati per anno con interventi | Ore dei ticket in fattura |

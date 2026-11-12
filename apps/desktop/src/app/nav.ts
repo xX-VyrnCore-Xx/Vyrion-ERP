@@ -59,6 +59,7 @@ export const NAV: NavSection[] = [
         children: [
           { label: "Clienti e fornitori", to: e("party") },
           { label: "Contatti", to: e("contact") },
+          { label: "Duplicati", to: "duplicates" },
         ],
       },
       {

@@ -9,6 +9,8 @@ import { toCsv } from "../modules/reports";
 import { formatValue, resolveRefs } from "../ui/format";
 import { Empty, ErrorNote, TABLE, TD, TH, Toolbar } from "../ui/parts";
 import { saveText } from "../ui/saveText";
+import { ImportDialog } from "../ui/ImportDialog";
+import { isImportable } from "../modules/importer";
 
 const PAGE = 50;
 
@@ -33,6 +35,7 @@ export function EntityListPage({
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
   const filters = filtersFrom(
     route,
     def.fields.map((f) => f.name),
@@ -104,6 +107,9 @@ export function EntityListPage({
         />
         {query ? <Button onClick={() => go(href("e", entityKey))}>Rimuovi filtro</Button> : null}
         <div className="ml-auto flex gap-2">
+          {isImportable(def) ? (
+            <Button onClick={() => setImporting(true)}>Importa CSV</Button>
+          ) : null}
           <Button onClick={() => void exportCsv()}>Esporta CSV</Button>
           <Button variant="primary" onClick={() => go(newHref)}>
             Nuovo
@@ -111,6 +117,7 @@ export function EntityListPage({
         </div>
       </Toolbar>
       <ErrorNote message={result.error ?? exportError} />
+      {importing ? <ImportDialog def={def} onClose={() => setImporting(false)} /> : null}
       {result.data && rows.length === 0 ? (
         <Empty>
           {search

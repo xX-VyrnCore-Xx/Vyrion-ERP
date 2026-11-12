@@ -119,6 +119,7 @@ const SETTINGS: CatalogItem[] = [
 
 /** What else people may call a page. */
 const EXTRA_KEYWORDS: Record<string, string[]> = {
+  duplicates: ["doppioni", "unisci", "unire clienti", "anagrafiche doppie", "stesso cliente"],
   server: [
     "raggiungibile",
     "online",

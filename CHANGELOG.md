@@ -7,6 +7,18 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ### Added
 
+- **Importazione da CSV** (pulsante «Importa CSV» nelle liste): separatori «;», «,» o tab, BOM,
+  virgolette; mappatura automatica delle colonne per etichetta (modificabile), importi e date
+  all'italiana, controllo di ogni riga con le regole dell'entità, salto dei già presenti
+  (partita IVA, codice fiscale, email) e report degli errori per riga. Non disponibile per
+  documenti, prima nota, pagamenti e movimenti, che nascono dalle regole contabili.
+- **Anagrafiche duplicate** (Anagrafiche → Duplicati): trova i doppioni per partita IVA, codice
+  fiscale, email o nome (ignorando forma giuridica e punteggiatura) e li unisce in una sola
+  operazione: sposta contatti, opportunità, ticket e documenti, completa i campi vuoti, conserva le
+  note. Se il doppione ha documenti emessi non si unisce (restano intestati a chi è stato fatturato).
+
+### Added
+
 - **Test end-to-end contro il server vero in CI** (job «End-to-end»): sincronizzazione tra due
   dispositivi, lavoro offline e ripresa, conflitti, rinnovo del token e flussi della console.
   Test di prestazioni con 3000 record e revisione di sicurezza interna (SECURITY.md).

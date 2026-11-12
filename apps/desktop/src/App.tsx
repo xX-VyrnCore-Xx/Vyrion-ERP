@@ -34,6 +34,9 @@ const DocumentEditor = lazy(() =>
 const DocumentsPage = lazy(() =>
   import("./pages/DocumentsPage").then((m) => ({ default: m.DocumentsPage })),
 );
+const DuplicatesPage = lazy(() =>
+  import("./pages/DuplicatesPage").then((m) => ({ default: m.DuplicatesPage })),
+);
 const EntityFormPage = lazy(() =>
   import("./pages/EntityFormPage").then((m) => ({ default: m.EntityFormPage })),
 );
@@ -188,6 +191,7 @@ function Shell({ volatile }: { volatile: boolean }) {
   else if (section === "documents") page = <DocumentsPage route={route} go={go} />;
   else if (section === "d" && a && b)
     page = <DocumentEditor key={`${a}/${b}`} type={a} id={b} go={go} />;
+  else if (section === "duplicates") page = <DuplicatesPage />;
   else if (section === "deadlines") page = <DeadlinesPage />;
   else if (section === "journal") page = <JournalPage />;
   else if (section === "pipeline") page = <PipelinePage go={go} />;
