@@ -1,0 +1,17 @@
+
+  VITE v8.3.8  ready in 2533 ms
+
+  ➜  Local:   http://127.0.0.1:5199/
+10:27:50 AM [vite] (client) [Unhandled error] TypeError: Cannot read properties of null (reading 'querySelector')
+ > src/components/Sidebar.tsx:200:56
+    198 |          onMouseEnter={(e) =>
+    199 |            hasChildren
+    200 |              ? schedule(() => show(item, e.currentTarget.querySelector("[data-row]")), OPEN_DELAY_MS)
+        |                                                          ^
+    201 |              : close()
+    202 |          }
+
+10:28:07 AM [vite] (client) hmr update /src/components/Sidebar.tsx, /src/index.css
+10:28:41 AM [vite] (client) hmr update /src/index.css
+10:28:41 AM [vite] (client) hmr update /src/index.css
+10:28:54 AM [vite] (client) hmr update /src/index.css
