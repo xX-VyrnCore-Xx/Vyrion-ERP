@@ -62,6 +62,8 @@ export interface SyncApi extends SyncState {
   syncNow(): Promise<void>;
   resolve(conflictId: number, choice: "mine" | "server"): Promise<void>;
   disconnect(): Promise<void>;
+  /** One signed-in call to the server (account pages); renews the session when needed. */
+  request<T>(method: string, path: string, body?: unknown): Promise<T>;
   /** A text for support: what the link is doing, without any secret. */
   diagnostics(): string;
 }
@@ -103,6 +105,7 @@ const message = (error: unknown): string =>
 export function SyncProvider({ ws, children }: { ws: Workspace; children: ReactNode }) {
   const [state, setState] = useState<SyncState>(EMPTY);
   const engineRef = useRef<SyncEngine | null>(null);
+  const transportRef = useRef<HttpTransport | null>(null);
   const challenge = useRef<{ serverUrl: string; email: string; token: string } | null>(null);
   const busy = useRef(false);
   const failures = useRef(0);
@@ -130,6 +133,7 @@ export function SyncProvider({ ws, children }: { ws: Workspace; children: ReactN
       const transport = new HttpTransport(session, ws.deviceId, (renewed) =>
         setSetting(ws.db, SESSION, renewed, ws.ctx.now()),
       );
+      transportRef.current = transport;
       return new SyncEngine(ws, transport);
     },
     [ws],
@@ -320,17 +324,28 @@ export function SyncProvider({ ws, children }: { ws: Workspace; children: ReactN
         ];
         return lines.join("\n");
       },
+      async request<T>(method: string, path: string, body?: unknown): Promise<T> {
+        const transport = transportRef.current;
+        if (!transport) throw new Error("Non sei collegato al server");
+        try {
+          return await transport.request<T>(method, path, body);
+        } catch (error) {
+          if (needsSignIn(error)) patch({ needsLogin: true });
+          throw error;
+        }
+      },
       async disconnect() {
         const session = await getSetting<SyncSession>(ws.db, SESSION);
         await engineRef.current?.disconnect();
         if (session) await logout(session);
         await setSetting(ws.db, SESSION, null, ws.ctx.now());
         engineRef.current = null;
+        transportRef.current = null;
         clearRetry();
         setState(EMPTY);
       },
     }),
-    [state, run, start, refresh, ws, clearRetry],
+    [state, run, start, refresh, ws, clearRetry, patch],
   );
 
   return <Context.Provider value={api}>{children}</Context.Provider>;
