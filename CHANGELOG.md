@@ -7,6 +7,10 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ### Added
 
+- **Gestione dell'account sul server** (Impostazioni → Account e server, a collegamento attivo): profilo e ultimo
+  accesso, cambio password (gli altri dispositivi vengono scollegati), attivazione/disattivazione della verifica in
+  due passaggi, nuovi codici di recupero (mostrati una volta), dispositivi collegati (scollega uno o tutti gli altri) e
+  ultimi accessi. Usa le rotte già presenti nel backend; 5 test nuovi.
 - **Avvisi e account**: il pulsante a campana ora apre un pannello con gli avvisi (apri, nascondi uno o tutti,
   collegamento alla panoramica; prima portava solo alla panoramica). Il menu del profilo mostra l'account collegato,
   lo stato di sincronizzazione e le azioni rapide (Sincronizza ora, Accedi di nuovo, Collega al server).

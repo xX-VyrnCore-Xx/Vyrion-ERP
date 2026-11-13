@@ -11,6 +11,7 @@ import { CompanyCard } from "./CompanyCard";
 import { DataCard } from "./DataCard";
 import { ShellCard } from "./ShellCard";
 import { UpdateCard } from "./UpdateCard";
+import { AccountSecurityCard } from "./AccountSecurityCard";
 import { SyncCard } from "./SyncCard";
 
 interface Props {
@@ -218,6 +219,7 @@ export function SettingsPage({
               </Card>
 
               <SyncCard serverUrl={serverUrl} />
+              <AccountSecurityCard />
             </>
           ) : null}
           {current === "app" ? (
