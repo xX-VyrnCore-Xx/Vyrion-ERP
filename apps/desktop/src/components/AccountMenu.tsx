@@ -14,8 +14,18 @@ import { useEffect, useId, useRef, useState } from "react";
 
 import type { ConnectionState } from "../hooks/useServerStatus";
 import type { Theme } from "../hooks/useTheme";
+import { useSyncOptional } from "../app/sync";
+import { relativeTime, summarizeSync, type SyncTone } from "../app/syncStatus";
 import { t } from "../i18n/it";
 import { inDesktop, shell } from "../lib/native";
+
+const SYNC_DOT: Record<SyncTone, string> = {
+  ok: "bg-success",
+  info: "bg-info animate-pulse",
+  warning: "bg-warning",
+  danger: "bg-danger",
+  muted: "bg-muted",
+};
 
 const DOT: Record<ConnectionState, string> = {
   unconfigured: "bg-muted",
@@ -98,6 +108,8 @@ export function AccountMenu({
     };
   }, [open]);
 
+  const sync = useSyncOptional();
+  const summary = sync ? summarizeSync(sync) : null;
   const name = companyName ?? "Profilo locale";
   const go = (to: string) => {
     setOpen(false);
@@ -114,16 +126,58 @@ export function AccountMenu({
           className={`pop-in absolute bottom-full z-20 mb-1 rounded-xl border border-line bg-surface p-1.5 shadow-pop ${compact ? "left-2 w-64" : "inset-x-2"}`}
         >
           <div className="flex items-center gap-2.5 px-2 pb-2 pt-1.5">
-            <span className="grid size-8 shrink-0 place-items-center rounded-full bg-accent text-xs font-semibold text-accent-contrast">
+            <span className="grid size-9 shrink-0 place-items-center rounded-full bg-accent text-sm font-semibold text-accent-contrast">
               {initials(companyName)}
             </span>
             <span className="min-w-0">
               <span className="block truncate text-[13px] font-medium text-fg">{name}</span>
-              <span className="flex items-center gap-1.5 text-[11px] text-muted">
-                <span aria-hidden="true" className={`size-1.5 rounded-full ${DOT[connection]}`} />
-                {t.connection[connection]}
+              <span className="block truncate text-[11px] text-muted">
+                {sync?.connected && sync.email ? sync.email : "Solo su questo computer"}
               </span>
             </span>
+          </div>
+          <div className="mx-1 mb-1.5 rounded-lg border border-line bg-raised px-2.5 py-2">
+            <div role="status" className="flex items-center gap-1.5 text-[11.5px] text-fg">
+              <span
+                aria-hidden="true"
+                className={`size-1.5 shrink-0 rounded-full ${summary ? SYNC_DOT[summary.tone] : DOT[connection]}`}
+              />
+              <span className="truncate">{summary ? summary.label : t.connection[connection]}</span>
+            </div>
+            {sync?.connected ? (
+              <div className="mt-0.5 text-[11px] text-muted">
+                Ultimo scambio: {relativeTime(sync.lastSyncAt)}
+                {sync.pending ? ` · ${sync.pending} da inviare` : ""}
+              </div>
+            ) : null}
+            <div className="mt-1.5 flex gap-1.5">
+              {!sync?.connected ? (
+                <button
+                  type="button"
+                  onClick={() => go("settings/account")}
+                  className="rounded-md bg-accent/10 px-2 py-1 text-[11.5px] font-medium text-accent hover:bg-accent/20"
+                >
+                  Collega al server
+                </button>
+              ) : sync.needsLogin ? (
+                <button
+                  type="button"
+                  onClick={() => go("settings/account")}
+                  className="rounded-md bg-danger/10 px-2 py-1 text-[11.5px] font-medium text-danger hover:bg-danger/20"
+                >
+                  Accedi di nuovo
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled={sync.syncing}
+                  onClick={() => void sync.syncNow()}
+                  className="rounded-md bg-accent/10 px-2 py-1 text-[11.5px] font-medium text-accent hover:bg-accent/20 disabled:opacity-50"
+                >
+                  {sync.syncing ? "Sincronizzazione…" : "Sincronizza ora"}
+                </button>
+              )}
+            </div>
           </div>
           <div className="my-1 h-px bg-line" />
           {ENTRIES.map(({ to, label, hint, icon: Icon }) => (

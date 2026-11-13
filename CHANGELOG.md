@@ -7,6 +7,9 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ### Added
 
+- **Avvisi e account**: il pulsante a campana ora apre un pannello con gli avvisi (apri, nascondi uno o tutti,
+  collegamento alla panoramica; prima portava solo alla panoramica). Il menu del profilo mostra l'account collegato,
+  lo stato di sincronizzazione e le azioni rapide (Sincronizza ora, Accedi di nuovo, Collega al server).
 - **Backend: codici di recupero rigenerabili** (`POST /auth/2fa/recovery-codes`, con password e codice valido; i
   vecchi vengono invalidati; voce di audit) e **2FA obbligatorio per gli amministratori** come opzione
   (`REQUIRE_2FA_FOR_ADMINS`, spenta di default): l'amministratore senza 2FA può solo attivarlo, cambiare password e

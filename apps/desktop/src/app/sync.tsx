@@ -89,6 +89,9 @@ export const useSync = (): SyncApi => {
   return value;
 };
 
+/** Like `useSync`, but null where there is no provider (isolated components and tests). */
+export const useSyncOptional = (): SyncApi | null => useContext(Context);
+
 const message = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
 
