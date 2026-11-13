@@ -55,8 +55,21 @@ describe("Sidebar", () => {
     expect(screen.getByRole("link", { name: "Anagrafiche" })).toBeInTheDocument();
   });
 
-  it("opens the sub-menu of the page the person is on and highlights the entry", () => {
+  it("keeps every item at one row: the sections are not unfolded in the sidebar", () => {
     show(place("e/contact"));
+    expect(screen.queryByRole("list", { name: "Sottomenu Anagrafiche" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Contatti" })).toBeNull();
+    // the item of the page the person is on is the highlighted one
+    expect(screen.getByRole("link", { name: "Anagrafiche" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+  });
+
+  it("shows the sections beside the sidebar, with the current one highlighted", async () => {
+    const user = userEvent.setup();
+    show(place("e/contact"));
+    await user.click(screen.getByRole("button", { name: "Mostra le sezioni di Anagrafiche" }));
     const sub = screen.getByRole("list", { name: "Sottomenu Anagrafiche" });
     expect(within(sub).getByRole("link", { name: "Contatti" })).toHaveAttribute(
       "aria-current",
@@ -67,26 +80,35 @@ describe("Sidebar", () => {
     );
   });
 
-  it("opens and closes a sub-menu by hand and remembers it", async () => {
+  it("opens with the pointer, closes with Escape or with the button, and goes to a section", async () => {
     const user = userEvent.setup();
-    const { unmount } = show(place(""));
+    const go = vi.fn();
+    show(place(""), go);
     expect(screen.queryByRole("list", { name: "Sottomenu Pipeline" })).toBeNull();
-    await user.click(screen.getByRole("button", { name: "Apri il sottomenu Pipeline" }));
-    expect(screen.getByRole("list", { name: "Sottomenu Pipeline" })).toBeInTheDocument();
-    unmount();
-    show(place(""));
-    expect(screen.getByRole("list", { name: "Sottomenu Pipeline" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Chiudi il sottomenu Pipeline" }));
+    await user.hover(screen.getByRole("link", { name: "Pipeline" }));
+    const sub = await screen.findByRole("list", { name: "Sottomenu Pipeline" });
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("list", { name: "Sottomenu Pipeline" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Mostra le sezioni di Pipeline" }));
+    await user.click(screen.getByRole("button", { name: "Mostra le sezioni di Pipeline" }));
+    expect(screen.queryByRole("list", { name: "Sottomenu Pipeline" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Mostra le sezioni di Pipeline" }));
+    const first = within(screen.getByRole("list", { name: "Sottomenu Pipeline" })).getAllByRole(
+      "link",
+    )[0];
+    expect(sub).toBeDefined();
+    if (first) await user.click(first);
+    expect(go).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("list", { name: "Sottomenu Pipeline" })).toBeNull();
   });
 
-  it("goes to the item and opens its sub-menu when the label is clicked", async () => {
+  it("goes to the item when the label is clicked, without opening anything", async () => {
     const user = userEvent.setup();
     const go = vi.fn();
     show(place(""), go);
     await user.click(screen.getByRole("link", { name: "Pipeline" }));
     expect(go).toHaveBeenCalledWith("pipeline");
-    expect(screen.getByRole("list", { name: "Sottomenu Pipeline" })).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "Sottomenu Pipeline" })).toBeNull();
   });
 
   it("no longer has a Settings entry: they are in the account menu", () => {
@@ -146,13 +168,17 @@ describe("Sidebar folded to icons", () => {
     await user.click(screen.getByRole("button", { name: "Riduci la barra laterale" }));
     expect(document.querySelector("aside")?.getAttribute("data-collapsed")).toBe("true");
     // no visible text, but the links keep their accessible name and a tooltip
+    // an item without sections gets a tooltip; one with sections shows them on hover instead
+    expect(screen.getByRole("link", { name: "Comunicazioni" })).toHaveAttribute(
+      "title",
+      "Comunicazioni",
+    );
     const link = screen.getByRole("link", { name: "Documenti" });
-    expect(link).toHaveAttribute("title", "Documenti");
     await user.click(link);
     expect(go).toHaveBeenCalledWith("documents");
     // the groups stay (as separators) and no sub-menu is offered while folded
     expect(screen.queryByRole("heading", { name: "CRM" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /sottomenu/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /sezioni di/i })).not.toBeInTheDocument();
     unmount();
     // remembered on the next start
     show(place(""));
@@ -168,5 +194,16 @@ describe("Sidebar folded to icons", () => {
     expect(document.querySelector("aside")?.getAttribute("data-collapsed")).toBe("true");
     await user.keyboard("{Control>}b{/Control}");
     expect(document.querySelector("aside")?.getAttribute("data-collapsed")).toBe("false");
+  });
+});
+
+describe("Sidebar sections when folded", () => {
+  it("still lists the sections of an icon when the pointer is on it", async () => {
+    const user = userEvent.setup();
+    show(place(""));
+    await user.click(screen.getByRole("button", { name: "Riduci la barra laterale" }));
+    await user.hover(screen.getByRole("link", { name: "Documenti" }));
+    const sub = await screen.findByRole("list", { name: "Sottomenu Documenti" });
+    expect(within(sub).getByRole("link", { name: "Fatture" })).toBeInTheDocument();
   });
 });

@@ -78,6 +78,37 @@ body,
   height: 100%;
 }
 
+/* The page itself never scrolls (each screen scrolls inside the app), and it must not bounce:
+   on macOS, pulling past the top used to slide the whole window down and show a gap. */
+html {
+  background: var(--bg);
+  overscroll-behavior: none;
+}
+body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+#root {
+  position: fixed;
+  inset: 0;
+}
+main {
+  overscroll-behavior: contain;
+}
+
+/* Height of a row of the sidebar menu: it follows the window, between 22 and 30 px, so that
+   the whole menu (24 rows and 3 headings) fits without scrolling in any usual window. */
+:root {
+  --nav-row: clamp(22px, calc((100vh - 176px) / 24), 30px);
+  --nav-font: clamp(12px, calc(var(--nav-row) * 0.47), 13.5px);
+}
+
+/* A scroll bar in the menu is only a last resort: keep it thin and quiet. */
+.nav-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
 body {
   margin: 0;
   /* One static glow (never animated, never repainted on scroll). */

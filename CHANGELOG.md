@@ -47,6 +47,11 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ### Changed
 
+- **Barra laterale senza scorrimento**: le righe si adattano all'altezza della finestra (da 22 a 30 px) e le sezioni
+  di una voce (Documenti → Fatture, Preventivi…) non si aprono più dentro la barra ma in un **menu a comparsa**
+  accanto, al passaggio del mouse o con la freccia; la barra ha sempre la stessa altezza e tutto il menu entra in
+  una finestra di 700 px senza scorrere (in una finestra più bassa compare solo una barra discreta). CRM, ERP e IT
+  restano sempre aperti. Il menu a comparsa funziona anche con la barra ridotta a icone.
 - **Collegamento al server più semplice e affidabile**: «Prova il collegamento» (versione e componenti del server,
   oppure cosa controllare se non risponde); i server che si riavviano o sono sovraccarichi (429/502/503/504) non
   sono più errori ma «offline con nuovo tentativo», rispettando `Retry-After`; se la sessione scade l'app smette di
@@ -124,6 +129,9 @@ Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); vers
 
 ### Fixed
 
+- **macOS: la finestra non «rimbalza» più** tirando verso l'alto: il rimbalzo spostava tutta l'interfaccia verso il
+  basso lasciando un buco sotto la barra del titolo. La pagina non scorre più da sola (scorre solo il contenuto) e il
+  rimbalzo è disattivato; lo sfondo dietro l'interfaccia ha lo stesso colore del tema.
 - **Schema del database congelato**: la migrazione 2 ora è un elenco letterale (con un test che ne
   verifica l'impronta). Prima seguiva le definizioni delle entità, quindi qualunque modifica a
   un'entità avrebbe impedito di aprire i database già creati; le modifiche vengono ora da nuove

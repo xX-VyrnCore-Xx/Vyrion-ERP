@@ -81,6 +81,9 @@ vero**. Spunta ogni riga e annota cosa vedi quando non coincide.
 
 ## 6. Uso quotidiano e prestazioni
 
+- [ ] **macOS:** con il trackpad tiro la pagina verso l'alto e verso il basso: l'interfaccia **non si sposta** e non compare nessun buco sotto la barra del titolo.
+- [ ] La barra laterale mostra **tutte** le voci (da Panoramica a Documentazione) senza scorrere; passando il mouse su «Documenti» compare il menu con Fatture, Preventivi, Ordini…
+
 - [ ] Chiudo la finestra: l'app resta nel tray (se così è impostato) e si riapre dal tray.
 - [ ] Una seconda esecuzione dell'app **non** apre una seconda finestra ma porta in primo piano la prima.
 - [ ] Con circa 1.000+ record (importo un CSV di anagrafiche): ricerca globale e liste restano fluide. Annoto i tempi percepiti.
