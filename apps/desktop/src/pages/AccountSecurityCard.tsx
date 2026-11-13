@@ -118,9 +118,10 @@ function AccountPanel() {
     ]).then(
       ([m, s, l]) => {
         if (!live) return;
-        setMe(m);
-        setSessions(s);
-        setLogins(l);
+        // A server that answers with something unexpected must not break the page.
+        setMe(m?.user ? m : null);
+        setSessions(Array.isArray(s) ? s : []);
+        setLogins(Array.isArray(l) ? l : []);
         setError(null);
       },
       (e: unknown) => {

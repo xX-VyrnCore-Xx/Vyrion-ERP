@@ -56,6 +56,14 @@ describe("AccountSecurityCard", () => {
     expect(container.textContent).toBe("");
   });
 
+  it("survives a server that answers with something unexpected", async () => {
+    request.mockResolvedValue({});
+    render(<AccountSecurityCard />);
+    expect(await screen.findByText("Il tuo account sul server")).toBeTruthy();
+    await waitFor(() => expect(request).toHaveBeenCalledTimes(3));
+    expect(screen.queryByText("2FA attiva")).toBeNull();
+  });
+
   it("shows the profile and devices", async () => {
     serve(false);
     render(<AccountSecurityCard />);
